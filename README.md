@@ -1,6 +1,6 @@
 # Three end-to-end projects
 
-X Canada is a weekly meal-kit subscription (HelloFresh-class). Each project has its own grain, warehouse, and cloud. Full problem, assumptions, math, and how to test are in that project's `README.md`.
+X Canada is a weekly meal-kit subscription (HelloFresh-class). Each project has its own grain, warehouse, and cloud. That project's `README.md` is the studio HTML written as markdown — problem, warehouse, methods, tables, formulas, and production — not a short summary.
 
 | Project | Grain | Production | Full write-up |
 |---|---|---|---|
