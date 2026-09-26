@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Model uncertainty</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="overview">
+  {% set active = 'uncertainty' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Inference</p>
+      <h1>Bootstrap uncertainty on recommendations</h1>
+    </div>
+    <p class="lede">Point estimates are not enough to ship a mix. Residual bootstrap and moving-block bootstrap give percentile intervals on media betas, iROAS, and the profit gap versus last-touch. Ship / Watch / Kill gates use those intervals so a recommendation only goes to finance when the lower tail still clears the hurdle.</p>
+  </header>
+
+  {% set howto_model %}
+  <p>Residual bootstrap and moving-block bootstrap on media betas, iROAS, and the profit gap versus last-touch. Ship if the lower tail of beta is above 0 and iROAS is above 1. Statistical tests add bootstrap p-values and a price permutation null.</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Click <strong>Run bootstrap</strong> (156 weeks, 280 draws, block 8). Pass if the page is not a wall of Ship, block intervals are wider than residual intervals, and Statistical tests put the observed price coefficient outside the shuffled pile.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>All Ship: intervals collapsed. Block much wider than residual: leftover weekly correlation — do not brief residual p-values. Classical p &lt; 0.05 but bootstrap p &gt; 0.10: believe the bootstrap. Kill on TV iROAS: do not ship TV as proven; schedule a geo-lift.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+
+  <section class="controls">
+    <label>Weeks
+      <input id="nWeeks" type="number" min="80" max="260" step="4" value="156" />
+    </label>
+    <label>Bootstrap draws
+      <input id="nBoot" type="number" min="80" max="800" step="20" value="280" />
+    </label>
+    <label>Block length
+      <input id="blockLen" type="number" min="4" max="20" value="8" />
+    </label>
+    <label>Seed
+      <input id="seed" type="number" value="42" />
+    </label>
+    <button type="button" id="runUnc" class="primary">Run bootstrap</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Media beta — residual bootstrap 90% CI</h3>
+        <p class="explain">Dot is the OLS point estimate. Whiskers are the 5th and 95th percentiles of residual-bootstrap betas. If the whisker crosses zero, do not brief that channel as proven incremental.</p>
+        <canvas id="betaChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>iROAS — 80% bootstrap interval</h3>
+        <p class="explain">Evaluated at historical mean spend. The dashed line is the 1.0 hurdle. A bar whose lower whisker sits above 1.0 is a Ship candidate.</p>
+        <canvas id="iroasChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Residual vs block-bootstrap width</h3>
+        <p class="explain">Block bootstrap keeps 8-week chunks so leftover weekly correlation inflates the interval. If block CIs are much wider than residual CIs, the residual bootstrap was too optimistic.</p>
+        <canvas id="widthChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Profit gap vs last-touch (bootstrap)</h3>
+        <p class="explain">Distribution of incremental-mix profit minus last-touch profit. Mass to the right of zero is the reallocation case. The p-value is the share of draws ≤ 0.</p>
+        <canvas id="profitHist"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="wide-table">
+        <h3>Residual-bootstrap intervals</h3>
+        <div id="ciTable"></div>
+      </div>
+      <div class="wide-table">
+        <h3>Recommendation gates</h3>
+        <div id="gateTable"></div>
+      </div>
+    </div>
+    <p class="explain after">Hypothesis tests and permutation for price are on <a href="{{ url_for('uncertainty_tests') }}">Statistical tests</a>. Formulas are on <a href="{{ url_for('uncertainty_methods') }}">Uncertainty methods</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='uncertainty.js') }}?v=6"></script>
+</body>
+</html>

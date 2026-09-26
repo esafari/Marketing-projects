@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLV overview</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="overview">
+  {% set active = 'clv' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Customer lifetime value</p>
+      <h1>Meal-kit subscriber value — first box is not the customer</h1>
+    </div>
+    <p class="lede">X Canada is a weekly meal kit (HelloFresh-class). Score next-horizon <em>contribution margin</em> with BG/NBD (boxes + latent alive), Gamma-Gamma on <em>continuing-box</em> AOV (first-box promo stripped out), and an out-of-fold Ridge on RFM plus plan size, skip rate, and first-touch channel. Search sells box one. Referral and TV sell households that are still shipping in week 12.</p>
+  </header>
+
+  {% set howto_model %}
+  <p>BG/NBD for P(alive) and expected future boxes, Gamma-Gamma for expected <em>continuing-box</em> AOV (first-box discount excluded), times 32% continuing contribution. Ridge is fit out-of-fold on RFM plus plan size, skip rate, first-box discount, and first-touch channel so it cannot use that household’s own future boxes.</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Click <strong>Run CLV</strong> (1,800 households, snapshot 130, 26-week horizon, 32% continuing margin). Pass if blend rank tracks sealed holdout margin (Spearman ≥ 0.25), referral/TV mean CLV sits above paid search, and family plans beat 2-person. Do not pass on P(alive) alone — a new first-box buyer can look alive and still be low value.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>Everyone still alive: snapshot is too early. Ridge crushes BG/NBD: holdout leaked into RFM. Search is the high-CLV tier: we scored first-box discount as if it were continuing AOV, or last-click leaked. Search P(alive) <em>above</em> TV is possible (short tenure after box one) — rank on blend CLV, not on alive. Diagnose on Customers and Segments before you change the mix model.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+
+  <section class="controls">
+    <label>Customers
+      <input id="nCustomers" type="number" min="400" max="8000" step="100" value="1800" />
+    </label>
+    <label>Snapshot week
+      <input id="snapshotWeek" type="number" min="40" max="200" value="130" />
+    </label>
+    <label>Horizon weeks
+      <input id="horizonWeeks" type="number" min="8" max="52" value="26" />
+    </label>
+    <label>Continuing margin
+      <input id="margin" type="number" min="0.05" max="0.8" step="0.01" value="0.32" />
+    </label>
+    <label>Seed
+      <input id="seed" type="number" value="42" />
+    </label>
+    <button type="button" id="runClv" class="primary">Run CLV models</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="assumptions" class="assumption-list"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Predicted CLV distribution</h3>
+        <p class="explain">Blend score (65% BG/NBD × Gamma-Gamma, 35% Ridge) over the horizon, in contribution-margin dollars. A long right tail is normal: a few champions carry a large share of value.</p>
+        <canvas id="histChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Predicted vs holdout margin</h3>
+        <p class="explain">Each point is a customer. The x-axis is the blend CLV. The y-axis is actual contribution margin in the weeks after the snapshot. Rank correlation matters more than a tight 45-degree line.</p>
+        <canvas id="scatterChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Mean CLV by acquisition channel</h3>
+        <p class="explain">Referral and TV should sit above YouTube above Social above Paid Search. That is the meal-kit harvest story: search sells the cheap first box; brand and friends sell households that still ship after week 4.</p>
+        <canvas id="channelChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Holdout lift by predicted decile</h3>
+        <p class="explain">Decile 10 is the top 10% by predicted CLV. Lift is their mean future spend versus the average customer. A monotone staircase means the ranking is usable for CRM.</p>
+        <canvas id="liftChart"></canvas>
+      </div>
+    </div>
+    <p class="explain after">Customer-level rows are on <a href="{{ url_for('clv_customers') }}">CLV customers</a>. Segment charts are on <a href="{{ url_for('clv_segments') }}">CLV segments</a>. Formulas are on <a href="{{ url_for('clv_methods') }}">CLV methods</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='clv.js') }}?v=6"></script>
+</body>
+</html>

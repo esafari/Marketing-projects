@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Price elasticity</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=11" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="overview">
+  {% set active = 'pricing' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Resume 04</p>
+      <h1>Price elasticity and the online pricing bandit</h1>
+    </div>
+    <p class="lede">A log-log model recovers how units move with list price. Thompson sampling then picks among five price arms each round so the shop explores enough to identify the curve and exploits enough to bank contribution profit. This is not trade TPR (that is section 03) and not a national media price index (section 02).</p>
+  </header>
+  {% set howto_model %}
+  <p>Units = base × (price index / 100)^elasticity. Profit = units × (list × index/100 − cost). Thompson sampling, UCB, and epsilon-greedy choose the next arm. Elasticity is refit on the traffic the bandit actually saw.</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Click <strong>Run pricing</strong> (240 rounds, seed 42). Pass if recovered elasticity is near −1.35, Thompson cumulative profit beats random, and the oracle arm (usually 96) is pulled more than the extremes as rounds accumulate.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>Elasticity near 0: not enough price variation (epsilon too small too early). Thompson worse than random: prior variance collapsed. All pulls on 92: the bandit is chasing units, not profit — check unit cost.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+  <section class="controls">
+    <label>Rounds
+      <input id="nRounds" type="number" min="40" max="800" step="20" value="240" />
+    </label>
+    <label>Epsilon
+      <input id="epsilon" type="number" min="0.02" max="0.5" step="0.02" value="0.12" />
+    </label>
+    <label>Seed
+      <input id="seed" type="number" value="42" />
+    </label>
+    <button type="button" id="runPricing" class="primary">Run pricing</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel wide">
+        <h3>Cumulative contribution profit</h3>
+        <p class="explain">Thompson, UCB, epsilon-greedy, and random on the same demand draws. The gap versus random is the value of balancing exploration and exploitation.</p>
+        <canvas id="profitChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>True profit by price arm</h3>
+        <p class="explain">Oracle is the tallest bar. A 92 index sells more boxes but can lose margin. 108 keeps margin and loses volume.</p>
+        <canvas id="armChart"></canvas>
+      </div>
+    </div>
+    <div id="armTable"></div>
+    <p class="explain after">Round-by-round prices and regret are on <a href="{{ url_for('pricing_bandit') }}">Online bandit</a>. Formulas are on <a href="{{ url_for('pricing_methods') }}">Pricing methods</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='pricing.js') }}?v=1"></script>
+</body>
+</html>

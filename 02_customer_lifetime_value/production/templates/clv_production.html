@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLV production — Azure</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+</head>
+<body>
+  {% set active = 'clv' %}
+  {% set project = 'clv' %}
+  {% set stage = 'prod' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 02 · Production · Azure</p>
+      <h1>Score every active customer on Azure, then lock the holdout</h1>
+    </div>
+    <p class="lede">Same Azure landing zone family as mix modeling, different warehouse and job. Canada Central. The mix-model Monday parent does not score CLV. This job runs after Saturday’s meal-kit ledger — shipped boxes, skips, plan size, first-box promo — is in bronze. Causal effects stay on Amazon Web Services.</p>
+  </header>
+  <section class="playbook">
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>Landing zone</h3>
+        <p>Resource group <code>rg-x-clv-prod</code> next to the mix-model groups, not inside them. Lake folders <code>bronze/x_orders/</code>, <code>bronze/x_customers/</code>, <code>gold/mart_clv_customer/</code>. Shared Key Vault can hold the ledger secret; the managed identity for this job cannot read mix-model allocation tables.</p>
+      </article>
+      <article>
+        <h3>Weekly score job</h3>
+        <p>Azure Data Factory pipeline <code>pl_x_clv_week</code> Sunday 07:00 America/Toronto. Data build tool builds the snapshot at last Saturday. Azure Container Apps Job runs BG/NBD, Gamma-Gamma, and out-of-fold Ridge. Writes <code>gold.clv_scores</code> and <code>gold.clv_run_log</code> (snapshot date, MAPE vs last sealed holdout).</p>
+      </article>
+      <article>
+        <h3>What ships</h3>
+        <p>Image <code>x-clv:{git-commit}</code>. Power BI segment view for lifecycle marketing. CRM export is a hashed key plus decile, not a raw email file. If holdout rank correlation drops, the job fails closed and keeps last week’s scores.</p>
+      </article>
+    </div>
+    <h2>Azure services in this project</h2>
+    <table>
+      <thead><tr><th>Service</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>Azure Data Lake Storage Generation 2</td><td>Customer and order bronze, CLV gold</td></tr>
+        <tr><td>Azure Data Factory</td><td>Ledger copy and Sunday parent</td></tr>
+        <tr><td>Microsoft Fabric Warehouse</td><td><code>mart_clv_customer</code>, sealed holdout</td></tr>
+        <tr><td>Azure Container Apps Job</td><td>BG/NBD + Gamma-Gamma + Ridge score</td></tr>
+        <tr><td>Azure Container Apps</td><td>CLV studio pages, gold read-only</td></tr>
+        <tr><td>Power BI</td><td>Deciles and acquisition-channel segments</td></tr>
+      </tbody>
+    </table>
+    <p class="resume-links">
+      <a href="{{ url_for('clv_data_engineering') }}">Data engineering contract</a>
+      <a href="{{ url_for('clv_overview') }}">Development</a>
+      <a href="{{ url_for('clv_methods') }}">CLV methods</a>
+    </p>
+  </section>
+</body>
+</html>

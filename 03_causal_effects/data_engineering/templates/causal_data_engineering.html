@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Causal data engineering</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=12" />
+</head>
+<body>
+  {% set active = 'causal' %}
+  {% set project = 'causal' %}
+  {% set stage = 'de' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 03 · Data engineering</p>
+      <h1>Geo-week panels and a treatment file that cannot be edited after launch</h1>
+    </div>
+    <p class="lede">Causal effects are not another column on the mix-model mart. You need a panel (geo × week), a locked treatment assignment, and outcomes that match the decision (net boxes or net revenue). Correlation from the observational rollout is the failure mode this warehouse is built to expose.</p>
+  </header>
+  <section class="playbook">
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>Sources</h3>
+        <p>Geo sales (Forward Sortation Area × week), planned extra media or offer (treatment start week, treated geos), pre-period covariates (baseline sales, unemployment), and a randomization log if the design was a geo experiment. Mix-model national spend is a covariate, not the treatment file.</p>
+      </article>
+      <article>
+        <h3>Bronze → silver → gold</h3>
+        <p>Bronze: daily geo sales and the signed treatment CSV. Silver: Monday weeks, one row per geo-week, treatment flag that cannot flip after <code>lock_ts</code>. Gold: <code>mart_causal_geo_week</code> plus <code>dim_experiment</code> (design = observational vs randomized). The engine reads both designs on purpose.</p>
+      </article>
+      <article>
+        <h3>Tests that fail the week closed</h3>
+        <p>Treated geos have a pre-period. No geo is both treated and control. Outcome is ship-week net, not Google conversions. If the randomization log is missing, the row is labeled observational and difference-in-differences is not sold as a trial.</p>
+      </article>
+    </div>
+    <h2>Contract the development engine is allowed to see</h2>
+    <table>
+      <thead><tr><th>Mart column</th><th>Meaning</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td><code>geo_key</code>, <code>week</code></td><td>Panel grain</td><td>Every estimator</td></tr>
+        <tr><td><code>y</code></td><td>Net outcome</td><td>Pre/post, DiD, two-way OLS</td></tr>
+        <tr><td><code>treat</code>, <code>post</code></td><td>Assignment and time</td><td>DiD contrast</td></tr>
+        <tr><td><code>design</code></td><td>observational vs randomized</td><td>Which bias story to tell</td></tr>
+      </tbody>
+    </table>
+    <p class="resume-links">
+      <a href="{{ url_for('causal_problem') }}">Problem statement</a>
+      <a href="{{ url_for('causal_overview') }}">Development — estimators</a>
+      <a href="{{ url_for('causal_suite') }}">12-method suite</a>
+      <a href="{{ url_for('causal_production') }}">Production on Amazon Web Services</a>
+      <a href="{{ url_for('causal_experiments') }}">Experiment page</a>
+    </p>
+  </section>
+</body>
+</html>

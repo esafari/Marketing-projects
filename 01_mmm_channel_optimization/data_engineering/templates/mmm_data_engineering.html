@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMM data engineering</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=12" />
+</head>
+<body>
+  {% set active = 'studio' %}
+  {% set project = 'mmm' %}
+  {% set stage = 'de' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 01 · Data engineering</p>
+      <h1>Land spend, intent, and ship-week revenue before anyone fits a mix model</h1>
+    </div>
+    <p class="lede">This project optimizes each advertising channel: top-of-funnel, mid-funnel, and bottom-of-funnel spend, plus price. Data engineering owns the grain. Two-stage least squares never sees a campaign identifier or a Google conversion tag.</p>
+  </header>
+  <section class="playbook">
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>Sources</h3>
+        <p>Google Ads (Search, Performance Max, YouTube), later television and Meta, Google Search Console brand queries, X order ledger on ship-week, Statistics Canada unemployment and consumer prices, holiday and promo calendars, share of voice.</p>
+      </article>
+      <article>
+        <h3>Bronze → silver → gold</h3>
+        <p>Bronze keeps vendor names and load timestamps. Silver converts Canadian dollars, America/Toronto weeks, and YouTube versus Paid Search. Gold is the star schema. The engine reads only <code>mart_mmm_weekly</code> at <code>geo_key = 0</code>.</p>
+      </article>
+      <article>
+        <h3>Tests that fail the week closed</h3>
+        <p>One row per week. Y is net box revenue after credits and cancels, not Google <code>conversion_value</code>. M is organic branded clicks, not paid brand clicks. Spend columns are non-negative. A red test does not start Sequential Least Squares Programming.</p>
+      </article>
+    </div>
+    <h2>Contract the development engine is allowed to see</h2>
+    <table>
+      <thead><tr><th>Mart column</th><th>Meaning</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td><code>sales_Y</code></td><td>Ship-week net revenue</td><td>Stage 2 outcome</td></tr>
+        <tr><td><code>queries_M</code></td><td>Organic brand search</td><td>Stage 1 mediator</td></tr>
+        <tr><td><code>spend_*</code></td><td>Channel Canadian dollars</td><td>Adstock + Hill, then alpha / beta</td></tr>
+        <tr><td><code>price</code>, <code>promo_depth</code>, <code>holiday</code>, <code>sov</code></td><td>Non-media week</td><td>Controls, not channels</td></tr>
+      </tbody>
+    </table>
+    <p class="resume-links">
+      <a href="{{ url_for('mmm_problem') }}">Problem statement</a>
+      <a href="{{ url_for('mmm_studio') }}#tab-playbook">Full warehouse and field dictionary</a>
+      <a href="{{ url_for('mmm_studio') }}#q-x">X Canada case</a>
+      <a href="{{ url_for('mmm_studio') }}">Development studio</a>
+      <a href="{{ url_for('mmm_production') }}">Production on Azure</a>
+    </p>
+  </section>
+</body>
+</html>

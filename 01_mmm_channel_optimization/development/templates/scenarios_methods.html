@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scenario methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+</head>
+<body data-page="methods">
+  {% set active = 'scenario_methods' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Strategy planning</p>
+      <h1>How alternative strategies are scored</h1>
+    </div>
+    <p class="lede">This framework evaluates investment (media) and promotional (trade) strategies on one response surface so ROI optimization and scenario planning happen in the same units.</p>
+  </header>
+
+  <section class="playbook methods">
+    <p class="jump">
+      <a href="#s-pipe">Pipeline</a>
+      <a href="#s-plans">Named strategies</a>
+      <a href="#s-resp">Response surface</a>
+      <a href="#s-roi">ROI and profit</a>
+      <a href="#s-risk">Risk bands</a>
+      <a href="#s-opt">ROI-optimal</a>
+      <a href="#s-prod">Production</a>
+    </p>
+
+    <h2 id="s-pipe">Solving approach</h2>
+    <ol class="steps">
+      <li>Fix a weekly media envelope B_m and a weekly promo envelope B_p, plus a horizon H (default 13 weeks).</li>
+      <li>Write each strategy as two share vectors. Shares are normalized to the envelopes. Promo-led is the exception: it moves 28% of media dollars into promo so the total bag stays B_m + B_p.</li>
+      <li>Score incremental sales from Hill media plus saturated promo lifts.</li>
+      <li>Convert to profit and ROI. Add a downside (lifts × 0.70) and an 80-draw noise band.</li>
+      <li>Solve one SLSQP plan (ROI-optimal) inside channel bounds.</li>
+      <li>Rank plans on horizon profit. Plot the ROI–volume frontier.</li>
+    </ol>
+
+    <h2 id="s-plans">Named strategies</h2>
+    <table>
+      <thead><tr><th>Plan</th><th>Media idea</th><th>Promo idea</th><th>Why it exists</th></tr></thead>
+      <tbody>
+        <tr><td>Status quo</td><td>Last-year lock, scaled to B_m</td><td>Last-year lock, scaled to B_p</td><td>The meeting starts here.</td></tr>
+        <tr><td>Harvest</td><td>Search 58%</td><td>Mass-heavy</td><td>What last-click and many retailers ask for.</td></tr>
+        <tr><td>Brand-led</td><td>TV 46% + Social 26%</td><td>Grocery + Drug</td><td>Awareness and higher-margin banners.</td></tr>
+        <tr><td>Promo-led</td><td>Cut media 28%</td><td>That 28% plus B_p</td><td>Trade calendar takes the growth job.</td></tr>
+        <tr><td>Risk-off</td><td>Flatter shares</td><td>Flatter shares</td><td>Lower concentration (HHI), less single-channel bet.</td></tr>
+        <tr><td>ROI-optimal</td><td>SLSQP</td><td>SLSQP</td><td>Planning optimum inside bounds.</td></tr>
+        <tr><td>Custom</td><td>Planner sliders</td><td>Planner sliders</td><td>The stakeholder’s “what if.”</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="s-resp">Response surface</h2>
+    <pre class="formula">Media (weekly, $k sales)
+  T_c(s) = hill( s / (1 − θ_c) ; K_c )
+  Inc_media = Σ_c β_c T_c(s_c)
+
+Promo (weekly, units then $)
+  Inc_units = Σ_b β_b * (s_b / (K_b + s_b)) * 90
+  Inc_promo = Inc_units * 4.20
+
+Inc_total = Inc_media + Inc_promo</pre>
+    <p>Media betas match the attribution DGP (TV 210, Social 105, Search 155, Email 48). Promo betas are channel lifts (Grocery 1.35 … E-comm 1.80). The two systems are added, not multiplied: a national brand plan and a trade calendar that harvests it. Do not also add the trade-forecast page’s incrementals on top of these or you double-count.</p>
+
+    <h2 id="s-roi">ROI and profit</h2>
+    <pre class="formula">Invest_week = Σ media + Σ promo
+π_week      = 0.36 * Inc_total − Invest_week
+ROI         = π_week / Invest_week
+
+Horizon: multiply incremental, investment, and profit by H.
+ROI is a rate, so it is not multiplied.</pre>
+    <p>0.36 is a blended contribution margin across media-driven and promo-driven units. Banner-specific margins (Mass 0.24, Drug 0.38) sit inside the promo engine on the forecast pages; here the question is strategy ranking, not invoice-level trade ROI.</p>
+
+    <h2 id="s-risk">Risk bands</h2>
+    <pre class="formula">Downside:  score again with every β scaled by 0.70
+Upside:    every β scaled by 1.25
+p10 / p90: 80 draws, scale ~ Normal(1, 0.12), clip not applied
+
+HHI = 0.5 Σ (media share)² + 0.5 Σ (promo share)²
+High risk if HHI &gt; 0.38 or the plan is Harvest.</pre>
+    <p>The downside is the planning question finance will ask: “If incrementality is 30% light, do we still beat the lock?” A plan that wins at 1.0× and loses at 0.7× is not robust.</p>
+
+    <h2 id="s-opt">ROI-optimal (SLSQP)</h2>
+    <pre class="formula">max_{s,u}   0.36 * Inc(s,u) − (1's + 1'u)
+s.t.        1's = B_m
+            1'u = B_p
+            L_c ≤ s_c ≤ U_c    media trust region
+            L_b ≤ u_b ≤ U_b    promo trust region</pre>
+    <p>Promo-led is allowed to break the two-envelope split. ROI-optimal is not: it keeps B_m and B_p so the comparison to status quo is a pure mix change, except for that one named strategy that moves the bags.</p>
+
+    <h2 id="s-prod">How to run this on a real lock</h2>
+    <ol class="steps">
+      <li>Replace β and K with the live MMM and the live trade model. Do not keep these DGP numbers in a board pack.</li>
+      <li>Lock B_m and B_p to the finance envelopes for the quarter. Add retailer min-feature constraints as extra SLSQP inequalities.</li>
+      <li>Put last year’s actualized mix in Status quo, not the original plan.</li>
+      <li>Show the scorecard and the downside column in the same table. Hide iROAS-only slides; they skip the promo bag.</li>
+      <li>Custom scenarios come from stakeholders. Score them in this engine so “what if” is comparable, not a new spreadsheet.</li>
+      <li>If Custom never beats ROI-optimal, that is expected. Use Custom to test political constraints (cannot cut Search, must keep Club).</li>
+    </ol>
+  </section>
+</body>
+</html>

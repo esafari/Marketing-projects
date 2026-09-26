@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLV data engineering</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+</head>
+<body>
+  {% set active = 'clv' %}
+  {% set project = 'clv' %}
+  {% set stage = 'de' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 02 · Data engineering</p>
+      <h1>Household grain — shipped boxes, skips, and first-box promo, then RFM</h1>
+    </div>
+    <p class="lede">X Canada is a weekly meal kit (HelloFresh-class). Lifetime value is a different contract from the mix model. The mix model is national and weekly. This project is one row per household at last Saturday. Data engineering must keep first-box net paid separate from continuing-box AOV, count skips as gaps (not deaths), and seal every box after snapshot T.</p>
+  </header>
+  <section class="playbook">
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>Sources</h3>
+        <p>X subscription ledger (household key, ship timestamp, net CAD paid, skip flag, pause flag, cancel flag, plan size 2 vs 4, first-box promo flag), acquisition campaign → first-touch channel (television, YouTube, referral, social, paid search), and a hashed customer identifier. Email never leaves bronze.</p>
+      </article>
+      <article>
+        <h3>Bronze → silver → gold</h3>
+        <p>Bronze: raw boxes, skips, and a slowly changing household dim. Silver: one event per kept box (net CAD) plus skip events with amount zero; first-box rows tagged. Gold: <code>mart_clv_customer</code> at Saturday T — recency, repeat frequency, continuing AOV, skip rate, plan size, first-box discount, first-touch channel, tenure. Holdout boxes after T stay in a sealed table.</p>
+      </article>
+      <article>
+        <h3>Tests that fail the week closed</h3>
+        <p>No future boxes in snapshot features. Frequency counts shipped boxes, not clicks or skips. First-box net paid is not the Gamma-Gamma AOV. Acquisition is first-touch, not last click or the coupon on box one. Duplicate household keys fail. Continuing margin is the finance 32% planning rate, not a Google value.</p>
+      </article>
+    </div>
+    <h2>Contract the development engine is allowed to see</h2>
+    <table>
+      <thead><tr><th>Mart column</th><th>Meaning</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td><code>customer_key</code></td><td>Surrogate, not email</td><td>Join only</td></tr>
+        <tr><td><code>recency_weeks</code>, <code>frequency</code>, <code>monetary</code></td><td>RFM at snapshot T. Frequency is repeat shipped boxes.</td><td>BG/NBD + Ridge</td></tr>
+        <tr><td><code>aov_continuing</code></td><td>Mean net CAD on boxes after the first</td><td>Gamma-Gamma. First-box promo is excluded.</td></tr>
+        <tr><td><code>plan_size</code>, <code>skip_rate</code>, <code>first_box_discount</code></td><td>2 vs 4 person; skips / eligible weeks; first-box off list</td><td>Ridge features; segment story</td></tr>
+        <tr><td><code>acq_channel</code></td><td>First media: TV, YouTube, Referral, Social, Paid Search</td><td>Ridge; harvest test vs mix model</td></tr>
+        <tr><td><code>holdout_value</code></td><td>Net paid in (T, T+h]</td><td>Test only — not a fit feature</td></tr>
+      </tbody>
+    </table>
+    <p class="resume-links">
+      <a href="{{ url_for('clv_problem') }}">Problem statement</a>
+      <a href="{{ url_for('clv_overview') }}">Development — BG/NBD studio</a>
+      <a href="{{ url_for('clv_production') }}">Production on Azure</a>
+      <a href="{{ url_for('mmm_data_engineering') }}">Mix-model warehouse (different grain)</a>
+    </p>
+  </section>
+</body>
+</html>

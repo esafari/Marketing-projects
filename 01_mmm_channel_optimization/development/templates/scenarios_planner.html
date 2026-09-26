@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scenario planner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="planner">
+  {% set active = 'scenario_planner' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Strategy planning</p>
+      <h1>Custom scenario planner</h1>
+    </div>
+    <p class="lede">Set media and promo shares. They are normalized to the two weekly envelopes, then scored against the named strategies. Use this to test “what if we cut Search 10 points and put it into Grocery feature weeks?” before a quarterly lock.</p>
+  </header>
+
+  <section class="controls">
+    <label>Weekly media $k
+      <input id="mediaBudget" type="number" min="40" max="400" step="10" value="140" />
+    </label>
+    <label>Weekly promo $k
+      <input id="promoBudget" type="number" min="20" max="400" step="10" value="120" />
+    </label>
+    <label>Horizon weeks
+      <input id="horizon" type="number" min="4" max="26" value="13" />
+    </label>
+    <button type="button" id="runCustom" class="primary">Score custom mix</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+
+  <section class="funnels" style="margin-bottom: 20px">
+    <article class="lane tofu">
+      <header><h2>Media shares</h2><p>Relative weights. They do not need to sum to 100.</p></header>
+      <div class="grid" id="mediaShares">
+        <label>TV<input id="sh-TV" type="number" step="1" value="30" /></label>
+        <label>Social<input id="sh-Social" type="number" step="1" value="22" /></label>
+        <label>Search<input id="sh-Search" type="number" step="1" value="36" /></label>
+        <label>Email<input id="sh-Email" type="number" step="1" value="12" /></label>
+      </div>
+    </article>
+    <article class="lane mofu">
+      <header><h2>Promo shares</h2><p>Trade dollars across retail channels.</p></header>
+      <div class="grid" id="promoShares">
+        <label>Grocery<input id="sh-Grocery" type="number" step="1" value="34" /></label>
+        <label>Mass<input id="sh-Mass" type="number" step="1" value="30" /></label>
+        <label>Drug<input id="sh-Drug" type="number" step="1" value="14" /></label>
+        <label>E-comm<input id="sh-Ecomm" type="number" step="1" value="22" /></label>
+      </div>
+    </article>
+    <article class="lane bofu">
+      <header><h2>How to read the result</h2><p>Custom is added to the same scorecard as the named strategies. If it does not beat ROI-optimal, a bound or a Hill curve is the reason — not the solver ignoring you.</p></header>
+    </article>
+  </section>
+
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Custom vs named strategies (profit)</h3>
+        <canvas id="profitChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Custom vs named (ROI)</h3>
+        <canvas id="roiChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="wide-table">
+        <h3>Scorecard including Custom</h3>
+        <div id="scoreTable"></div>
+      </div>
+    </div>
+  </section>
+  <script src="{{ url_for('static', filename='scenarios.js') }}?v=6"></script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Strategy scenarios</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="overview">
+  {% set active = 'scenarios' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Strategy planning</p>
+      <h1>Alternative investment and promo scenarios</h1>
+    </div>
+    <p class="lede">Score locked, harvest, brand-led, promo-led, risk-off, and ROI-optimal plans on the same planning horizon. Each plan is a media mix plus a trade/promo mix. The framework reports incremental sales, ROI, profit, and a downside band if every lift comes in at 70% of the planning estimate. Build your own mix on the planner page.</p>
+  </header>
+
+  {% set howto_model %}
+  <p>One response surface for media and trade. Named plans (locked, harvest, brand-led, promo-led, risk-off, ROI-optimal) plus the planner. Downside multiplies every lift by 0.70 (or the slider you set).</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Run the default envelopes. Pass if ROI-optimal ≠ harvest, risk-off has the tightest downside, and a custom planner mix scores between the named bookends. Drop downside to 0.50 — rank should be allowed to flip.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>Every plan the same profit: the surface is flat. Harvest always wins: upper-funnel iROAS is ~0 — go back to MMM identification. Planner mix ≠ what you typed: shares were renormalized to the envelopes.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+
+  <section class="controls">
+    <label>Weekly media $k
+      <input id="mediaBudget" type="number" min="40" max="400" step="10" value="140" />
+    </label>
+    <label>Weekly promo $k
+      <input id="promoBudget" type="number" min="20" max="400" step="10" value="120" />
+    </label>
+    <label>Horizon weeks
+      <input id="horizon" type="number" min="4" max="26" value="13" />
+    </label>
+    <label>Downside lift
+      <input id="downside" type="number" min="0.4" max="1" step="0.05" value="0.70" />
+    </label>
+    <label>Seed
+      <input id="seed" type="number" value="42" />
+    </label>
+    <button type="button" id="runScenarios" class="primary">Score scenarios</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Horizon profit by strategy ($k)</h3>
+        <p class="explain">Navy is the planning (base) profit. The thin rust whiskers in the table are p10–p90 from lift noise. Promo-led moves dollars from media into trade; it is not an even split of the two envelopes.</p>
+        <canvas id="profitChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>ROI vs incremental sales</h3>
+        <p class="explain">The useful frontier is up and to the right. Status quo is the lock. Harvest often buys volume with a worse ROI. ROI-optimal should sit near the top of the profit ranking unless a bound is binding.</p>
+        <canvas id="frontierChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Media mix by strategy ($k / week)</h3>
+        <p class="explain">TV / Social / Search / Email. Harvest piles Search. Brand-led piles TV. Risk-off flattens the shares to cut concentration.</p>
+        <canvas id="mediaChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Promo mix by strategy ($k / week)</h3>
+        <p class="explain">Grocery / Mass / Drug / E-comm trade. Promo-led inflates this bag by taking money out of media. Mass is cheap volume; Drug is high margin.</p>
+        <canvas id="promoChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="wide-table">
+        <h3>Scorecard</h3>
+        <div id="scoreTable"></div>
+      </div>
+    </div>
+    <p class="explain after">Set your own shares on <a href="{{ url_for('scenario_planner') }}">Scenario planner</a>. Formulas are on <a href="{{ url_for('scenario_methods') }}">Scenario methods</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='scenarios.js') }}?v=6"></script>
+</body>
+</html>

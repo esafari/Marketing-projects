@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLV customers</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+</head>
+<body data-page="customers">
+  {% set active = 'clv_customers' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Customer lifetime value</p>
+      <h1>Customer scores</h1>
+    </div>
+    <p class="lede">Every X Canada household known at last Saturday, ranked by blend CLV (continuing-box contribution over 26 weeks). Plan is 2-person vs family. P(alive) is latent — a new first-box buyer can look alive and still be low value. E[boxes] and E[continuing AOV] are the probabilistic pieces. Ridge did not see that household’s own holdout.</p>
+  </header>
+
+  <section class="controls">
+    <label>Search id / channel
+      <input id="search" type="text" style="width: 180px" placeholder="TV, 104, High" />
+    </label>
+    <label>Funnel
+      <select id="funnelFilter">
+        <option value="">All</option>
+        <option>TOFU</option>
+        <option>MOFU</option>
+        <option>BOFU</option>
+      </select>
+    </label>
+    <label>Value tier
+      <select id="tierFilter">
+        <option value="">All</option>
+        <option>High</option>
+        <option>Medium</option>
+        <option>Low</option>
+      </select>
+    </label>
+    <p id="status" class="status" hidden></p>
+  </section>
+
+  <section class="results">
+    <div id="kpis" class="kpis"></div>
+    <div class="panel wide-table">
+      <h3>Ranked customers</h3>
+      <p class="explain">Holdout $ is actual post-snapshot spend (not yet multiplied by margin). Blend CLV is expected contribution margin over the horizon.</p>
+      <div id="tableHost" class="scroll-table"></div>
+    </div>
+  </section>
+  <script src="{{ url_for('static', filename='clv.js') }}?v=6"></script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMM problem statement</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=13" />
+</head>
+<body>
+  {% set active = 'studio' %}
+  {% set project = 'mmm' %}
+  {% set stage = 'problem' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 01 · Problem statement</p>
+      <h1>How should a fixed weekly media envelope be split across advertising channels?</h1>
+    </div>
+    <p class="lede">Last-click and platform conversion tags credit the harvest channel. The commercial question is incremental: which dollar of television, YouTube, social, or paid search still moves net ship-week revenue after intent, price, promo, and season are held fixed.</p>
+  </header>
+  <section class="playbook">
+    <h2>Problem</h2>
+    <p>X Canada is a weekly meal-kit subscription (same economics as HelloFresh). It spends a weekly budget <code>B</code> across television, YouTube, social, and paid search to buy <em>first boxes</em>, while last-click tags credit branded search (“X meal kit”, “X Canada”) for people who already decided after a TV ad. Finance sees last-touch return that makes branded search look like the only profitable lever. Brand teams see those queries fall when television is cut. First-box promo depth, payday weeks, and popular-recipe stockouts also move ship-week revenue. We need a national weekly model that estimates <em>incremental</em> channel effects on net ship-week box revenue and recommends a feasible mix under min/max bounds.</p>
+
+    <h2>Scope</h2>
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>In scope</h3>
+        <p>National week grain. Media spend by parent channel. Price and promo depth as controls. Organic branded search as the mediator <code>M</code>. Ship-week net revenue as <code>Y</code>. Budget optimization under box constraints. Incremental mix versus last-touch, trade forecast, scenarios, bootstrap, and demand diagnostics as supporting development pages.</p>
+      </article>
+      <article>
+        <h3>Out of scope</h3>
+        <p>Creative testing, keyword bidding, frequency caps, geo-level mix (v1), customer-level scoring (that is project 02), and claiming a geo test is identified from this mart (that is project 03).</p>
+      </article>
+      <article>
+        <h3>Decision this model is allowed to change</h3>
+        <p>Next quarter’s weekly mix: how many dollars move from search to television or YouTube, and whether branded search is already on the flat part of the Hill curve.</p>
+      </article>
+    </div>
+
+    <h2>Questions</h2>
+    <ol>
+      <li>If we cut television by $10k/week, how much branded search intent and net revenue do we lose over the adstock horizon?</li>
+      <li>How much of paid search’s last-touch revenue is harvest of demand that upper-funnel already created?</li>
+      <li>Where is each channel on its Hill curve, and what is the next-dollar total return (direct plus through intent)?</li>
+      <li>Does a price or promo week look like a media win if we omit those controls?</li>
+      <li>Is the holdout fit strong enough that Sequential Least Squares Programming should ship, watch, or kill the recommendation?</li>
+    </ol>
+
+    <h2>Approaches we considered</h2>
+    <table>
+      <thead><tr><th>Approach</th><th>What it does</th><th>Why we did not stop there</th></tr></thead>
+      <tbody>
+        <tr><td>Last-touch / multi-touch rules</td><td>Assigns the box to the last or a weighted click.</td><td>Credits harvest. Cannot answer a spend cut.</td></tr>
+        <tr><td>Ordinary least squares of sales on spend</td><td>One equation, all channels enter <code>Y</code>.</td><td>Search is endogenous with demand. Coefficients steal television’s effect.</td></tr>
+        <tr><td>Black-box AutoML on the mart</td><td>Fits whatever predicts <code>Y</code>.</td><td>No structural <code>M</code>, no mROI, no constrained optimizer finance will sign.</td></tr>
+        <tr><td>Full Bayesian media mix</td><td>Priors on adstock and saturation.</td><td>Right later, heavier to produce weekly. Not required to teach the funnel identification story.</td></tr>
+        <tr><td>Funnel two-stage least squares + Sequential Least Squares Programming</td><td>Stage 1: media → intent. Stage 2: intent + harvest → sales. Then optimize <code>B</code>.</td><td><strong>Selected.</strong> Matches the bias we are hired to fix.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Why we selected this approach</h2>
+    <ul>
+      <li>The business process is two-step: people search for X, then they convert. A one-equation sales model cannot represent that.</li>
+      <li>Two-stage least squares gives an instrumented intent series so harvest channels do not eat upper-funnel coefficients.</li>
+      <li>Geometric or Weibull adstock and Hill saturation are the minimum shapes finance already debates (memory and diminishing returns).</li>
+      <li>Sequential Least Squares Programming respects the same weekly envelope and channel floors/caps the media team already uses.</li>
+      <li>The studio can recover known data-generating-process truth, so a stakeholder can see identification fail when we omit a control or flatten television flighting.</li>
+    </ul>
+
+    <h2>Assumptions</h2>
+    <ul>
+      <li><strong>Grain.</strong> One Canada week. Ship-week net revenue is the outcome operations books, not click-week Google value.</li>
+      <li><strong>Exclusion.</strong> Top-of-funnel spend moves sales only through intent <code>M</code> (alpha path). Bottom-of-funnel has no alpha.</li>
+      <li><strong>Transforms.</strong> Adstock is a known decay; Hill <code>K</code> is a saturation location, not a budget cap.</li>
+      <li><strong>Controls.</strong> Price, promo depth, holiday, payday, stockout, and share of voice are not channels. Omit them and media steals their weeks.</li>
+      <li><strong>Budget.</strong> The optimizer cannot invent money. Sum of recommended spend equals <code>B</code> inside bounds.</li>
+      <li><strong>Transfer.</strong> Synthetic data in the lab has the same equations as production. Production only changes the warehouse feed, not the likelihood.</li>
+    </ul>
+
+    <h2>What would change the choice</h2>
+    <p>If finance requires geo incremental return, we do not stretch this national mart — we open project 03. If the question is “which customers are worth a win-back,” we open project 02. If holdout MAPE stays above the lab gate after controls and flighting are honest, we watch or kill the mix and do not ship Sequential Least Squares Programming.</p>
+    <p class="resume-links">
+      <a href="{{ url_for('resume_home') }}#p01">Run the test on the lab</a>
+      <a href="{{ url_for('mmm_data_engineering') }}">Data engineering</a>
+      <a href="{{ url_for('mmm_studio') }}">Development</a>
+      <a href="{{ url_for('mmm_production') }}">Production — Azure</a>
+    </p>
+  </section>
+</body>
+</html>

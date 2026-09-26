@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demand methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=10" />
+</head>
+<body data-page="methods">
+  {% set active = 'demand_methods' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Forward planning</p>
+      <h1>How demand trends, diagnostics, and the plan are estimated</h1>
+    </div>
+    <p class="lede">This stack is built to understand demand trends and support forward-looking planning. It is not the trade-spend allocator and it is not the funnel media mix. Production replaces the synthetic national series with <code>mart_mmm_weekly.sales_Y</code> (or a units column) at the same weekly grain.</p>
+  </header>
+
+  <section class="playbook methods">
+    <p class="jump">
+      <a href="#dt-pipeline">Pipeline</a>
+      <a href="#dt-dgp">What is generated</a>
+      <a href="#dt-decomp">Decomposition</a>
+      <a href="#dt-forecast">Forecast</a>
+      <a href="#dt-diag">Diagnostics</a>
+      <a href="#dt-plan">Planning gates</a>
+      <a href="#dt-prod">Production</a>
+      <a href="#dt-test">How to test</a>
+    </p>
+
+    <h2 id="dt-pipeline">Solving approach</h2>
+    <ol class="steps">
+      <li>Build a national weekly demand series with trend, season, holiday, payday, promo depth, price, temperature, one mid-sample level shift, and two operational shocks.</li>
+      <li>Decompose demand into a 13-week moving-average trend, a week-of-year seasonal, and a residual.</li>
+      <li>Hold out the last 26 weeks. Nothing in the bake-off is fit on those weeks.</li>
+      <li>Fit seasonal naive (same week-of-year mean) and Ridge ARX on the observed level.</li>
+      <li>Blend the two models by inverse holdout root mean squared error.</li>
+      <li>Project the next 4–26 weeks with known calendar and frozen commercial drivers.</li>
+      <li>Run diagnostics: year-over-year, slope acceleration, Durbin–Watson, residual anomalies, a mean-break scan, holdout band coverage.</li>
+      <li>Translate the forecast and the residual into Grow / Hold / Cut planning decisions.</li>
+    </ol>
+
+    <h2 id="dt-dgp">What is being forecasted</h2>
+    <p>One national weekly series, meal-kit-like Canada box demand. Units, not media spend. The data generating process is additive so the decomposition has a ground truth.</p>
+    <pre class="formula">Y_t = trend_t + season_t + 48 holiday_t + 18 payday_t
+    + 310 promo_t − 4.2 (price_t − 100) − 2.4 (temp_t − 8)
+    + level_shift_t + shock_t + ε_t
+
+trend_t        = 980 + 1.15 t − 0.0018 t^2
+season_t       = 220 [ 0.10 sin(2π (w−6)/52) + 0.04 sin(4π w/52) ]
+level_shift_t  = −55 from week 80 (competitor / list-price reset)
+holiday weeks  = New Year, Super Bowl, Canada Thanksgiving, Black Friday / Cyber Monday, Christmas
+ε_t            ~ Normal(0, 22)
+
+Two random shock weeks (stockout or weather) sit in the residual on purpose.</pre>
+
+    <h2 id="dt-decomp">Trend, season, residual</h2>
+    <pre class="formula">trend_t     = 13-week centered moving average of Y_t (ends padded)
+detrended_t = Y_t − trend_t
+season_w    = mean(detrended_t | week-of-year = w), then de-meaned
+residual_t  = Y_t − trend_t − season_{w(t)}
+yoy_t       = Y_t / Y_{t−52} − 1   for t > 52</pre>
+    <p>This is a classical additive decomposition, not a full seasonal-trend loess. It is enough to tell planning whether a miss is trend, calendar, or a one-week shock. Campaign identifiers never enter.</p>
+
+    <h2 id="dt-forecast">Forecast models</h2>
+    <pre class="formula">Seasonal naive
+  Ŷ_t = mean( Y_s | week-of-year(s) = week-of-year(t) ) on the training window
+
+Ridge ARX (α = 2.5) on standardized features
+  Y_t ~ lag_1 + lag_52 + week + sin1 + cos1 + sin2 + cos2
+        + holiday + payday + promo_depth + price_index + temperature
+
+Ensemble
+  Ŷ = (w_naive * naive + w_ridge * ridge) / (w_naive + w_ridge)
+  w = 1 / holdout RMSE
+
+Horizon
+  holiday, payday, Fourier: known calendar
+  promo, price, temperature: last 8-week mean (or same week-of-year temperature)
+  lag_1 walks forward on predicted values
+  80% band = Ŷ ± 1.28 σ    90% band = Ŷ ± 1.64 σ
+  σ widens 4% per horizon step</pre>
+    <p>Weighted absolute percent error is the planning metric (total absolute error over total units). Mean absolute percentage error is shown but is not how volume is locked.</p>
+
+    <h2 id="dt-diag">Diagnostic analytics</h2>
+    <div class="scroll-table">
+    <table>
+      <thead><tr><th>Diagnostic</th><th>What it answers</th><th>Planning use</th></tr></thead>
+      <tbody>
+        <tr><td>Year-over-year, last 26 versus prior 26</td><td>Is growth slowing after the level shift?</td><td>Do not lock last year’s quarter if recent year-over-year has flipped.</td></tr>
+        <tr><td>Trend slope, last 26 versus prior 26</td><td>Acceleration of the extracted trend.</td><td>Grow / Hold / Cut on the outlook.</td></tr>
+        <tr><td>Durbin–Watson on the residual</td><td>Leftover weekly correlation after trend and season.</td><td>If far from 2, the holdout band is too tight.</td></tr>
+        <tr><td>Lag-1 autocorrelation</td><td>Same question, one number.</td><td>Confirms whether Ridge needed the lag_1 term.</td></tr>
+        <tr><td>Mean-break scan</td><td>Week that maximizes a two-sample mean gap.</td><td>Treat that week as a new regime. The data generating process plants one near week 80.</td></tr>
+        <tr><td>Anomaly |z| ≥ 2.5</td><td>Which weeks the decomposition cannot explain.</td><td>Investigate operations before adding a new seasonal term.</td></tr>
+        <tr><td>Promo-week versus quiet residual</td><td>Is depth delivering?</td><td>If promo residuals are negative, do not raise intro codes to “fix” a soft trend.</td></tr>
+        <tr><td>Holdout 80% coverage</td><td>Is σ honest?</td><td>Capacity uses the band only if coverage is near 80%.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h2 id="dt-plan">Planning gates</h2>
+    <pre class="formula">gap% = 100 * (mean Ŷ_{T+1..T+H} − mean Y_{T−12..T}) / mean Y_{T−12..T}
+
+Grow  if gap% ≥ 3 and recent trend slope > 0.15
+Cut   if gap% ≤ −3 or recent trend slope < −0.15
+Hold  otherwise
+
+Decisions reported
+  next horizon versus last 13 weeks
+  next horizon versus the same 13 weeks last year
+  recent 26-week trend slope versus the 26 weeks before that
+
+Capacity rule
+  if 80% high at the horizon > 1.12 × last-13 mean → pre-book fulfillment
+  otherwise do not add a shift</pre>
+    <p>Gates are planning language, not media Ship / Watch / Kill. A Cut means “do not lock last year’s volume,” not “kill the brand.”</p>
+
+    <h2 id="dt-prod">Production</h2>
+    <ol class="steps">
+      <li>Replace the data generating process with <code>gold.mart_mmm_weekly</code> at <code>geo_key = 0</code>. Use <code>sales_Y</code> or a units column finance signs. Same Monday week grain as the marketing mix.</li>
+      <li>Keep holiday and payday from <code>dim_date</code>. Keep promo depth, price index, and temperature from <code>fact_ops</code> / <code>fact_macro</code>.</li>
+      <li>Do not feed campaign identifiers or Google conversion value into this model.</li>
+      <li>Refit weekly after the Monday gold build. Do not refit daily — the grain is weekly.</li>
+      <li>Persist the outlook, the horizon band, and the anomaly list on <code>gold.model_run_log</code> so finance can restore last week’s lock.</li>
+    </ol>
+    <p class="explain">Demand forecast (trade allocation) still answers where to place temporary price reduction dollars. This page answers what volume next quarter should lock, and why last quarter missed.</p>
+
+    <h2 id="dt-test">How to test and diagnose (this suite)</h2>
+    <ol class="steps">
+      <li>On Demand trends, run seed 42. Record holdout weighted absolute percent error, 80% coverage, outlook gate, and the horizon vs last-13 gap.</li>
+      <li>Confirm the ensemble beats seasonal naive. If it does not, Ridge features are not identified — do not lock the horizon.</li>
+      <li>On Demand diagnostics, find the mean-break week (planted near 80) and list |z| ≥ 2.5 weeks with a named cause.</li>
+      <li>If promo-week residual is below −8, refuse a deeper intro-code plan. If Durbin–Watson is far from 2, refuse the capacity band.</li>
+      <li>Change only the seed or only the horizon and re-run. If the gate flips with no story in year-over-year, the lock is not stable.</li>
+    </ol>
+    <p class="explain">The same three-step write-up for every site tab is on <a href="{{ url_for('mmm_studio') }}#tab-test">MMM studio → 5. Model, test, diagnose</a>.</p>
+  </section>
+</body>
+</html>

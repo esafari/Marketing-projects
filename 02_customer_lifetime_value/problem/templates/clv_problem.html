@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLV problem statement</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+</head>
+<body>
+  {% set active = 'clv' %}
+  {% set project = 'clv' %}
+  {% set stage = 'problem' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 02 · Problem statement</p>
+      <h1>What is a meal-kit subscriber worth over the next two quarters — and did we buy a first box or a customer?</h1>
+    </div>
+    <p class="lede">X Canada is a weekly meal-kit subscription with the same economics as HelloFresh: a cheap first box, then skip / pause / cancel. The mix model answers a national weekly spend question. Lifecycle needs a different grain: one score per subscriber at a snapshot Saturday, compared with sealed later boxes so we are not ranking people with their own future.</p>
+  </header>
+  <section class="playbook">
+    <h2>Company setting</h2>
+    <p>Think HelloFresh, Goodfood, or Factor in Canada. A customer is a household on a weekly plan. They pick meals, skip a week when they travel, pause for a month, or cancel. Revenue is <strong>ship-week net paid in Canadian dollars</strong> — the box that left the fulfillment centre — not a click and not Google conversion value. The first box is sold at a deep discount. Most of the money, and almost all of the contribution margin, is in boxes two through N. Paid search and affiliates are very good at selling box one. Television, YouTube, and friend-referral are better at selling someone who is still taking a box in week 12.</p>
+
+    <h2>Problem</h2>
+    <p>Growth reports a cheap first-box CAC from branded search. Finance sees last-touch revenue that makes search look like the best channel. Lifecycle wants to know who is still “alive” (will take a future box), what they will pay after the promo ends, and whether search-acquired subscribers look valuable only because last-click harvested someone who already wanted the brand after TV. A first-box-heavy discount also makes new cohorts look cheap to acquire and weak on lifetime value. We need a customer-level expected <em>contribution margin</em> over a fixed horizon (default 26 weeks) that can be segmented by first-touch channel and by plan size (2-person vs family).</p>
+
+    <h2>Scope</h2>
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>In scope</h3>
+        <p>One row per subscriber at snapshot <code>T</code>. Recency, frequency (repeat boxes), continuing-box average order value, tenure, skip rate, plan size, first-box discount, first-touch channel. Probability alive, expected future boxes, expected continuing AOV, times finance continuing margin. Holdout net paid in <code>(T, T+h]</code> used only to test ranks. Azure production scores the base weekly after Saturday’s ledger lands.</p>
+      </article>
+      <article>
+        <h3>Out of scope</h3>
+        <p>National weekly media mix (project 01). Geo experiments (project 03). Next-best recipe, individual list prices, sending raw email files to an agency. Media CAC payback as the CLV number (CAC stays in the mix-model pack). Real-time session scoring. Infinity-horizon “lifetime.”</p>
+      </article>
+      <article>
+        <h3>Decision this model is allowed to change</h3>
+        <p>Win-back depth (40% off next two boxes vs a skip reminder), welcome-series investment, whether search-heavy acquisition is treated as high lifetime value or as harvest of first-box hunters, and whether family-plan champions get a different save offer than 2-person promo buyers.</p>
+      </article>
+    </div>
+
+    <h2>Questions</h2>
+    <ol>
+      <li>What is the expected contribution margin of each active subscriber over the next <code>h</code> weeks (default 26)?</li>
+      <li>What is P(alive) at the snapshot — and does a recently acquired first-box buyer look “alive” only because tenure is short?</li>
+      <li>After the first-box discount ends, who still takes a second, fourth, and twelfth box?</li>
+      <li>Does a simple RFM sort already rank the holdout, or does BG/NBD plus continuing-box Gamma-Gamma plus leak-safe Ridge add rank correlation?</li>
+      <li>Is mean CLV by first-touch channel telling the same harvest story as last-touch media mix? (Search should be low value, referral and TV high.)</li>
+      <li>Do family plans (4-person) carry more horizon margin than 2-person plans after we account for skip and dropout?</li>
+      <li>If last week’s sealed-holdout Spearman drops, do we keep last week’s scores or fail the job closed?</li>
+    </ol>
+
+    <h2>Approaches we considered</h2>
+    <table>
+      <thead><tr><th>Approach</th><th>What it does</th><th>Why we did not stop there</th></tr></thead>
+      <tbody>
+        <tr><td>Historic average spend × remaining tenure</td><td>One number per segment.</td><td>Ignores dropout and skip. Treats a lapsed first-box hunter like a weekly family plan.</td></tr>
+        <tr><td>RFM quintiles only</td><td>Recency / frequency / monetary ranks.</td><td>Good baseline. No P(alive), no continuing AOV, easy to leak holdout if you compute RFM after T.</td></tr>
+        <tr><td>Contractual survival on cancel date</td><td>Kaplan–Meier until the customer hits cancel.</td><td>Meal-kit “alive” is latent. People skip, then return, or silently lapse without cancelling. Cancel-date survival overstates the base.</td></tr>
+        <tr><td>Revenue × 35% on all boxes including first</td><td>Simple margin.</td><td>First-box contribution is near zero after the promo. Using list or first-box net paid as AOV makes search look like a small-basket shopper instead of a promo hunter.</td></tr>
+        <tr><td>Gradient boosting on everything including future boxes</td><td>High in-sample R².</td><td>Leaks the answer. Production would look brilliant and then fail on new Saturdays.</td></tr>
+        <tr><td>BG/NBD + Gamma-Gamma on continuing AOV + out-of-fold Ridge</td><td>Repeat-buy and dropout, then continuing-box value, then a ranker that cannot see that subscriber’s future.</td><td><strong>Selected.</strong> Standard non-contractual CLV, plus meal-kit features (skip, plan, first-box discount) on a leak-safe score.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Why we selected this approach</h2>
+    <ul>
+      <li>X Canada is non-contractual in practice: skips and silent churn, not only a cancel flag. That is a buy-till-you-die setting, not a mobile-phone contract.</li>
+      <li>BG/NBD separates “how often they take a box while alive” from “whether they dropped out after the promo.”</li>
+      <li>Gamma-Gamma is fit on <em>continuing-box</em> AOV so the first-box 40–60% discount does not look like a permanently small household.</li>
+      <li>Out-of-fold Ridge on RFM plus plan size, skip rate, first-box discount, and first-touch channel is the piece CRM can sort on without using that person’s post-snapshot boxes.</li>
+      <li>First-touch channel as a feature lets us test the harvest hypothesis at customer grain, which the mix model cannot see.</li>
+    </ul>
+
+    <h2>Realistic assumptions (HelloFresh-class)</h2>
+    <p>These are planning assumptions for the lab and for a Canadian meal-kit P&amp;L conversation. They are not a HelloFresh filing. Change the continuing margin on the development page; the rest are locked in the data-generating process so a reviewer can see what we claimed.</p>
+    <table>
+      <thead><tr><th>Assumption</th><th>Planning value</th><th>Why we use it</th></tr></thead>
+      <tbody>
+        <tr><td>Currency</td><td>Canadian dollars, ship-week net paid</td><td>Same Y spirit as the mix model. Never Google conversion value or list price before promo.</td></tr>
+        <tr><td>2-person plan list</td><td>About $79 per continuing box (3 recipes)</td><td>Typical Canadian 2-person weekly kit after a realistic menu mix. Not the advertised $4.99 first-box serving.</td></tr>
+        <tr><td>Family plan list</td><td>About $139 per continuing box (4-person)</td><td>Family plans are the AOV story. About 28–62% of a channel’s new customers, highest on referral and TV.</td></tr>
+        <tr><td>First-box discount</td><td>About 25% referral, 40% TV, 45% YouTube, 50% social, 60% paid search</td><td>Acquisition sells box one. Search and social are deepest. Friend-get-friend is shallowest.</td></tr>
+        <tr><td>First-box contribution</td><td>6% of first-box net paid</td><td>Food, packaging, and last-mile eat the promo. Box one is often a customer-acquisition cost, not a profit centre. We do <em>not</em> subtract media CAC here — that is project 01.</td></tr>
+        <tr><td>Continuing contribution</td><td>32% of continuing net paid (slider on the studio)</td><td>Variable margin after food and fulfillment, before overhead and media. A finance planning rate, not the year-end close.</td></tr>
+        <tr><td>Promo cliff</td><td>About 14% (referral) to 52% (paid search) never take a second box</td><td>The usual HelloFresh-class loss after the discount ends. Frequency = 0 means first-box-only, not a broken key.</td></tr>
+        <tr><td>Weekly skip</td><td>About 9–22% of eligible weeks, higher on search</td><td>Skip is not death. BG/NBD must see a gap in purchases without treating the household as cancelled.</td></tr>
+        <tr><td>Weekly lapse after box 2</td><td>About 2.2–5.5% per week, higher in the first four boxes</td><td>Early tenure is fragile. Hazard falls once the household has taken four boxes (habit).</td></tr>
+        <tr><td>Recipe credit / return</td><td>About 2–2.5% of boxes</td><td>Meal kits rarely “return.” We keep a small credit rate so Ridge can see quality issues without pretending this is apparel.</td></tr>
+        <tr><td>Horizon</td><td>26 weeks (two CRM quarters)</td><td>Welcome series and win-back are quarterly. Infinity-horizon CLV cannot be compared to a campaign cost.</td></tr>
+        <tr><td>Calendar</td><td>156 weeks of history, snapshot at week 130</td><td>Enough tenure for BG/NBD; 26 weeks sealed after T for the rank test.</td></tr>
+        <tr><td>Independence</td><td>One surrogate key, one household</td><td>Two emails in one kitchen inflate frequency. We do not split or merge households in v1.</td></tr>
+        <tr><td>First-touch channel</td><td>TV, YouTube, Referral, Social, Paid Search</td><td>Collapsed to the same TOFU / MOFU / BOFU language as the mix model. Not last click, not the coupon code on box one.</td></tr>
+        <tr><td>Gamma-Gamma</td><td>Continuing AOV ⊥ frequency | customer</td><td>If family plans both ship every week and have larger boxes in a forbidden way, AOV residuals will show it. First-box net paid is excluded from the spend model.</td></tr>
+        <tr><td>P(alive) vs value</td><td>A new first-box buyer can have a high P(alive) and a low CLV</td><td>Short tenure makes BG/NBD think they are still in play. Expected future boxes and continuing AOV are small. <strong>Rank on blend CLV, not on P(alive) alone.</strong></td></tr>
+        <tr><td>Holdout sealed</td><td>No ship-week after T in features</td><td>If Spearman is brilliant and Ridge crushs BG/NBD, we leaked. Production fails closed if last sealed Spearman drops.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>What success looks like on a run</h2>
+    <ul>
+      <li>Holdout Spearman of blend CLV vs sealed future margin ≥ 0.25 (lab gate). On this meal-kit DGP, 0.5+ is typical.</li>
+      <li>Mean CLV: Referral and TV above YouTube above Social above Paid Search.</li>
+      <li>Family plans above 2-person plans on mean horizon margin.</li>
+      <li>A long right tail: a few weekly family champions carry a large share of portfolio CLV.</li>
+      <li>Decile lift monotone. Top decile 2–4× the average household.</li>
+      <li>If Search is the high-CLV tier, the snapshot leaked last-click or we scored first-box discount as if it were continuing AOV.</li>
+    </ul>
+
+    <h2>What would change the choice</h2>
+    <p>If almost every subscriber has a contractual renew date and silent churn disappears, we would switch to a contractual survival model. If holdout Spearman stays near zero after we fix leakage, we do not put deciles into CRM. If first-box margin becomes a finance-owned number (promo fund), we take it from the ledger instead of the 6% planning rate. Media mix questions stay in project 01; we do not add weekly spend columns to this mart to “explain” CLV.</p>
+    <p class="resume-links">
+      <a href="{{ url_for('resume_home') }}#p02">Run the test on the lab</a>
+      <a href="{{ url_for('clv_data_engineering') }}">Data engineering</a>
+      <a href="{{ url_for('clv_overview') }}">Development</a>
+      <a href="{{ url_for('clv_methods') }}">Methods and formulas</a>
+      <a href="{{ url_for('clv_production') }}">Production — Azure</a>
+    </p>
+  </section>
+</body>
+</html>

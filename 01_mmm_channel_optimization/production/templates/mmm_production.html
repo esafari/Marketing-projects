@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMM production — Azure</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=12" />
+</head>
+<body>
+  {% set active = 'production' %}
+  {% set project = 'mmm' %}
+  {% set stage = 'prod' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 01 · Production · Azure</p>
+      <h1>Weekly channel allocation on Azure, fail-closed on Monday</h1>
+    </div>
+    <p class="lede">X Canada mix modeling lands in Canada Central. Azure Data Factory copies bronze. The data build tool writes gold. Azure Container Apps Job fits two-stage least squares and Sequential Least Squares Programming. Finance reads Power BI on gold only. Causal effects use Amazon Web Services instead — this project does not.</p>
+  </header>
+  <section class="playbook">
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>Landing zone</h3>
+        <p>One subscription, three resource groups: <code>rg-x-mmm-dev</code>, <code>rg-x-mmm-stage</code>, <code>rg-x-mmm-prod</code>. Azure Data Lake Storage Generation 2 account <code>stxmmm{env}</code>. Key Vault <code>kv-x-mmm-{env}</code>. Virtual Network private endpoints. No public lake.</p>
+      </article>
+      <article>
+        <h3>Monday job</h3>
+        <p>Parent pipeline <code>pl_x_mmm_week</code> at 06:00 America/Toronto. Wait for <code>_SUCCESS</code> on Google Ads, orders, and Search Console. Run data build tool tests. If any unique-week test fails, skip the engine and page finance.</p>
+      </article>
+      <article>
+        <h3>What ships</h3>
+        <p>Tagged image <code>x-mmm:{git-commit}</code> on Azure Container Registry. Job writes <code>gold.model_run_log</code> and <code>gold.allocation_recommended</code> (spend per channel). Power BI workspace reads gold. Nobody edits the allocation in a notebook after Monday.</p>
+      </article>
+    </div>
+    <h2>Azure services in this project</h2>
+    <table>
+      <thead><tr><th>Service</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>Azure Data Lake Storage Generation 2</td><td>bronze / silver / gold folders</td></tr>
+        <tr><td>Azure Data Factory</td><td>Daily copies and the Monday parent</td></tr>
+        <tr><td>Microsoft Fabric Warehouse</td><td>Star schema and <code>mart_mmm_weekly</code></td></tr>
+        <tr><td>Azure Container Apps Job</td><td>Engine fit and channel optimizer</td></tr>
+        <tr><td>Azure Container Apps</td><td>This studio, read-only against gold</td></tr>
+        <tr><td>Microsoft Entra Identifier + Power BI</td><td>Finance pack, gold only</td></tr>
+      </tbody>
+    </table>
+    <p class="resume-links">
+      <a href="{{ url_for('mmm_studio') }}#tab-cloud">Zero-to-weekly Azure steps (hashes stay on the studio file)</a>
+      <a href="{{ url_for('mmm_studio') }}#c-azure">Azure section</a>
+      <a href="{{ url_for('mmm_data_engineering') }}">Data engineering contract</a>
+      <a href="{{ url_for('mmm_studio') }}">Development</a>
+    </p>
+    <p class="explain">Legacy URL <code>/production</code> still opens this Azure page. Amazon Web Services production lives on the causal project.</p>
+  </section>
+</body>
+</html>

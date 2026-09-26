@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trade allocation</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="allocation">
+  {% set active = 'forecast_alloc' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Trade promotion</p>
+      <h1>Trade spend allocation</h1>
+    </div>
+    <p class="lede">The same weekly trade envelope, two plans. Equal split is how many teams still lock the year. Optimized uses the promo-aware lift coefficients, a Hill saturation on trade dollars, and channel contribution margins, then SLSQP reallocates. Profit is incremental margin minus trade cost over the holdout horizon.</p>
+  </header>
+
+  <p id="status" class="status" hidden></p>
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Weekly trade $k: equal vs optimized</h3>
+        <p class="explain">Rust is an even split. Navy is the optimizer. Both sum to the same weekly budget. A shift out of Mass into Drug or E-comm usually means Mass is already on the flat part of its Hill curve, or its margin cannot pay for the TPR.</p>
+        <canvas id="allocChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Trade ROI by channel at the optimized mix</h3>
+        <p class="explain">ROI = (incremental units × $4.20 × channel margin) / trade $. Below 1.0 the last dollar of trade does not earn its keep. Efficiency is incremental units per trade dollar — volume planners use that; finance uses ROI.</p>
+        <canvas id="roiChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Recovered promo coefficients vs truth</h3>
+        <p class="explain">Because this is synthetic we know the DGP lifts. Close grouped bars mean the log-demand regression separated TPR, feature, and display. A miss on display in E-comm is expected: that tactic barely exists online.</p>
+        <canvas id="liftChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Incremental units over the horizon</h3>
+        <p class="explain">Optimized vs equal, same spend. This is the planning number that goes into the promo calendar: extra cases, not extra revenue from list-price fiction.</p>
+        <canvas id="unitsChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="wide-table">
+        <h3>Optimized plan</h3>
+        <div id="optTable"></div>
+      </div>
+      <div class="wide-table">
+        <h3>Equal-split plan</h3>
+        <div id="eqTable"></div>
+      </div>
+    </div>
+  </section>
+  <script src="{{ url_for('static', filename='forecast.js') }}?v=6"></script>
+</body>
+</html>

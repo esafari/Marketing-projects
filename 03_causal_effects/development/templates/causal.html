@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Causal inference</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=11" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="overview">
+  {% set active = 'causal' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 03 · Development</p>
+      <h1>Separate true impact from correlation</h1>
+    </div>
+    <p class="lede">A 12% lift is planted at a known week. In the confounded rollout, the fastest-growing geos get the treatment — the usual commercial story. Observational pre/post then overstates impact. Difference-in-differences and a randomized geo experiment are scored against the same truth so a stakeholder can see why “it went up after we spent” is not a decision.</p>
+  </header>
+  {% set howto_model %}
+  <p>Geo-week panel. True multiplicative lift on treated geos after the cut. Methods: treated-only pre/post, difference-in-differences, two-way demeaned OLS, and an elasticity-style log contrast. The same lift is also assigned at random as the experiment.</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Click <strong>Run causal</strong> (20 geos, 80 weeks, 6 treated, seed 42). Pass if observational bias is clearly larger than the randomized difference-in-differences bias, and the treated line in the confounded chart was already rising before the cut.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>Observational ≈ experiment: the confound was weak (growth gaps too small). Difference-in-differences still biased in the confounded world: trends were not parallel — that is the point of the randomized column. Do not brief the observational number to finance.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+  <section class="controls">
+    <label>Geos
+      <input id="nGeos" type="number" min="8" max="40" value="20" />
+    </label>
+    <label>Weeks
+      <input id="nWeeks" type="number" min="40" max="160" value="80" />
+    </label>
+    <label>True lift
+      <input id="trueLift" type="number" min="0.02" max="0.4" step="0.01" value="0.12" />
+    </label>
+    <label>Seed
+      <input id="seed" type="number" value="42" />
+    </label>
+    <button type="button" id="runCausal" class="primary">Run causal</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel wide">
+        <h3>Confounded rollout — treated were already faster</h3>
+        <canvas id="confChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Estimate versus truth</h3>
+        <canvas id="biasChart"></canvas>
+      </div>
+    </div>
+    <div id="methodTable"></div>
+    <p class="explain after">Geo-level pre/post and the randomized chart are on <a href="{{ url_for('causal_experiments') }}">Experiments</a>. The twelve-method suite (instruments, synthetic control, inverse probability weights, double machine learning, meta-learners, factorial tests, bootstrap, and neural CATE) is on <a href="{{ url_for('causal_suite') }}">12-method suite</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='causal.js') }}?v=1"></script>
+</body>
+</html>

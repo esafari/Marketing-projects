@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Production workflows</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=11" />
+</head>
+<body>
+  {% set active = 'production' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Resume 09</p>
+      <h1>From exploratory notebooks to a fail-closed weekly workflow</h1>
+    </div>
+    <p class="lede">The engines on the other sections are the science. This section is the partnership: data engineers land bronze, analysts own the gold tests, science runs the tagged image, finance reads the run log. Nothing here invents a new table — it lands the warehouse from the playbook.</p>
+  </header>
+  <section class="playbook">
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>Data engineers</h3>
+        <p>Azure Data Factory or Glue jobs write <code>bronze/google_ads/x_ca</code>, <code>bronze/x_orders</code>, and <code>bronze/gsc/x_ca</code> with vendor names plus load timestamps. No email in orders. Private lake only.</p>
+      </article>
+      <article>
+        <h3>Analysts</h3>
+        <p>Data build tool models: YouTube versus Paid Search split, ship-week net revenue, brand-query dictionary, unique week × geo tests. Fail-closed — a red test does not start the engine.</p>
+      </article>
+      <article>
+        <h3>Science and finance</h3>
+        <p>Container job selects <code>gold.mart_mmm_weekly</code> where <code>geo_key = 0</code>, writes <code>model_run_log</code> and <code>allocation_recommended</code>. Power BI / QuickSight on gold only. Tuesday operating rhythm.</p>
+      </article>
+    </div>
+    <p class="resume-links">
+      <a href="{{ url_for('mmm_studio') }}#tab-playbook">Warehouse and field dictionary</a>
+      <a href="{{ url_for('mmm_studio') }}#tab-cloud">Azure and Amazon Web Services, zero to weekly</a>
+      <a href="{{ url_for('mmm_studio') }}#c-cli">From-zero command line</a>
+      <a href="{{ url_for('mmm_studio') }}#tab-test">How each engine is tested</a>
+    </p>
+    <p class="explain">Resume URL for this bullet: <code>/production</code>. The long technical steps stay in the MMM HTML so those hashes keep working.</p>
+  </section>
+</body>
+</html>

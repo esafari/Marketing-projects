@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Causal suite — 12 methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  {% set active = 'causal' %}
+  {% set project = 'causal' %}
+  {% set stage = 'suite' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 03 · Development · multi-method suite</p>
+      <h1>Twelve meal-kit marketing problems — each with a model you can test</h1>
+    </div>
+    <p class="lede">X Canada is a weekly meal-kit subscription (same economics as HelloFresh): cheap first box, then skip / pause / cancel, win-back coupons, and TV plus digital acquisition. Each card is one real decision — first-box YouTube, price-per-serving, Ontario TV, 40% win-back, New Year flight, pause-save, homepage $4.99 badge, checkout meal-picker, reactivation SMS. Run a test to see the planted truth versus the estimate. <strong>Run all 12</strong> walks the full suite.</p>
+  </header>
+  <p class="controls">
+    <label>Seed <input id="suiteSeed" type="number" value="42" /></label>
+    <button class="primary" id="runAllSuite" type="button">Run all 12 tests</button>
+    <span id="suiteStatus" class="status" hidden></span>
+  </p>
+  <section class="resume-grid lab-grid">
+    {% for method in suite_methods %}
+    <article class="resume-card lab-card" id="card-{{ method.id }}">
+      <p class="kicker">{{ loop.index }} / 12 · {{ method.id }}</p>
+      <p class="commercial">{{ method.commercial }}</p>
+      <h2>{{ method.title }}</h2>
+      <h3>Problem statement</h3>
+      <p class="problem-lead">{{ method.problem }}</p>
+      <div class="problem-grid">
+        <article>
+          <h4>Situation</h4>
+          <p>{{ method.situation }}</p>
+        </article>
+        <article>
+          <h4>Decision this number is allowed to change</h4>
+          <p>{{ method.decision }}</p>
+        </article>
+        <article>
+          <h4>Units and grain</h4>
+          <p>{{ method.units }}</p>
+        </article>
+        <article>
+          <h4>Why the naive number is wrong</h4>
+          <p>{{ method.naive_trap }}</p>
+        </article>
+        <article class="wide">
+          <h4>What success looks like</h4>
+          <p>{{ method.success }}</p>
+        </article>
+      </div>
+      <h3>Why this estimator</h3>
+      <p>{{ method.why }}</p>
+      <p><strong>Approach.</strong> {{ method.approach }}</p>
+      <p><strong>Assumptions.</strong> {{ method.assumptions }}</p>
+      <h3>Mathematical model</h3>
+      <pre class="formula">{{ method.math }}</pre>
+      <p><strong>How to read a run.</strong> {{ method.read }}</p>
+      <p class="controls">
+        <button class="primary run-one" type="button" data-method="{{ method.id }}">Run this test</button>
+      </p>
+      <p class="status" id="st-{{ method.id }}" hidden></p>
+      <p class="lab-gate" id="gt-{{ method.id }}" hidden></p>
+      <div class="result-box" id="ex-{{ method.id }}" hidden></div>
+      <div class="kpis" id="kp-{{ method.id }}"></div>
+      <div class="panel"><canvas id="ch-{{ method.id }}"></canvas></div>
+      <div class="scroll-table" id="tb-{{ method.id }}"></div>
+      <p class="explain" id="sy-{{ method.id }}"></p>
+    </article>
+    {% endfor %}
+  </section>
+  <script src="{{ url_for('static', filename='causal_suite.js') }}?v=2"></script>
+</body>
+</html>

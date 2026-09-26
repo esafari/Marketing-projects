@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uncertainty methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+</head>
+<body data-page="methods">
+  {% set active = 'uncertainty_methods' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Inference</p>
+      <h1>Bootstrapping, tests, and how confidence is computed</h1>
+    </div>
+    <p class="lede">These pages quantify uncertainty on the incremental MMM so a mix recommendation is not a single number. Residual bootstrap, block bootstrap, permutation, and classical t-tests are shown together because they answer the same stakeholder question in different languages.</p>
+  </header>
+
+  <section class="playbook methods">
+    <p class="jump">
+      <a href="#u-pipe">Pipeline</a>
+      <a href="#u-ols">Point model</a>
+      <a href="#u-resid">Residual bootstrap</a>
+      <a href="#u-block">Block bootstrap</a>
+      <a href="#u-ci">Percentile intervals</a>
+      <a href="#u-test">Tests</a>
+      <a href="#u-gate">Ship / Watch / Kill</a>
+      <a href="#u-prod">Production</a>
+    </p>
+
+    <h2 id="u-pipe">Solving approach</h2>
+    <ol class="steps">
+      <li>Fit the incremental MMM (adstock + Hill spend, log price, season, holiday) by OLS.</li>
+      <li>Draw B residual-bootstrap coefficient vectors (default 280).</li>
+      <li>Draw B moving-block bootstrap coefficient vectors (block length 8 weeks).</li>
+      <li>Map each draw to iROAS at mean spend and to the profit gap versus a last-touch mix.</li>
+      <li>Report 90% and 80% percentile intervals. Compare interval widths across the two bootstraps.</li>
+      <li>One-sided and two-sided bootstrap p-values, plus a permutation test that breaks the price–sales link.</li>
+      <li>Translate intervals into Ship / Watch / Kill so the recommendation pack is not a wall of p-values.</li>
+    </ol>
+
+    <h2 id="u-ols">Point model</h2>
+    <pre class="formula">Y = Xθ + ε
+X = [1, season, holiday, log(P/100), x̃_TV, x̃_Social, x̃_Search, x̃_Email]
+θ̂ = (X'X)^{−1} X'Y
+
+Classical (shown only as a foil):
+  se_j = s √(X'X)⁻¹_jj
+  t_j  = θ̂_j / se_j  ~ t_{n−k}   under iid normal ε
+  95% CI = θ̂_j ± t_{0.975, n−k} se_j</pre>
+    <p>Weekly media residuals are almost never iid. That is why the bootstrap is the number we brief, and the t-test is the “what a textbook would have said” column.</p>
+
+    <h2 id="u-resid">Residual bootstrap</h2>
+    <pre class="formula">Fit:  Ŷ = Xθ̂,   e = Y − Ŷ
+Draw: e* ~ sample(e) with replacement
+      Y* = Ŷ + e*
+      θ* = (X'X)⁻¹ X'Y*
+
+Repeat B times. This keeps the design X fixed and treats
+the residual cloud as the sampling distribution of noise.</pre>
+
+    <h2 id="u-block">Moving-block bootstrap</h2>
+    <pre class="formula">Split the n weeks into blocks of length L (default 8).
+Draw blocks with replacement until n rows are filled.
+Refit OLS on the concatenated blocks.
+
+If leftover autocorrelation or holiday clusters matter,
+Var*(θ_block) &gt; Var*(θ_residual).</pre>
+    <p>We do not use a naive iid pairs bootstrap on weeks: that would break adstock structure already baked into x̃. Residual and block are the two honest options once transforms are treated as known.</p>
+
+    <h2 id="u-ci">Percentile intervals and iROAS</h2>
+    <pre class="formula">90% CI:  [Q_0.05(θ*), Q_0.95(θ*)]
+80% CI:  [Q_0.10(θ*), Q_0.90(θ*)]
+
+iROAS_c* = θ*_c * T'(s̄_c)
+T'(s)    = [K / (K + s/(1−θ))²] / (1−θ)
+
+Profit gap* = π(even mix; θ*) − π(last-touch mix; θ*)</pre>
+
+    <h2 id="u-test">Hypothesis tests</h2>
+    <table>
+      <thead><tr><th>Null</th><th>p-value</th><th>Stakeholder reading</th></tr></thead>
+      <tbody>
+        <tr><td>β_c ≤ 0</td><td>share of θ*_c ≤ 0</td><td>Is this channel incremental at all?</td></tr>
+        <tr><td>iROAS_c ≤ 1</td><td>share of iROAS*_c ≤ 1</td><td>Does the next $1k pay for itself?</td></tr>
+        <tr><td>β_P = 0</td><td>two-sided tail of θ*_P</td><td>Is price identified?</td></tr>
+        <tr><td>iROAS_TV − iROAS_Search = 0</td><td>two-sided tail of the contrast</td><td>Are we allowed to move money between them?</td></tr>
+        <tr><td>π_inc − π_last ≤ 0</td><td>share of profit-gap* ≤ 0</td><td>Is the reallocation a fluke?</td></tr>
+        <tr><td>Price permutation</td><td>share of |θ*_P,perm| ≥ |θ̂_P|</td><td>Would a shuffled price series look this strong?</td></tr>
+      </tbody>
+    </table>
+    <pre class="formula">Permutation of price:
+  For b = 1..B_perm: shuffle log P, refit, store θ_P^{(b)}
+  p = mean( |θ_P^{(b)}| ≥ |θ̂_P| )</pre>
+
+    <h2 id="u-gate">Ship / Watch / Kill</h2>
+    <pre class="formula">Ship  if Q_0.05(β*) &gt; 0  and  Q_0.10(iROAS*) &gt; 1
+Kill  if Q_0.95(β*) &lt; 0  or   Q_0.90(iROAS*) &lt; 1
+Watch otherwise</pre>
+    <p>These are decision rules, not p-value theater. Watch means “keep the lock and go get a geo test,” not “the model failed.” Kill means do not ask for more budget on that channel from this evidence.</p>
+
+    <h2 id="u-prod">How to run this on a real model</h2>
+    <ol class="steps">
+      <li>Treat adstock θ and Hill K as fixed for the inner OLS, or nest a thinner bootstrap around a grid of (θ, K) if those were estimated.</li>
+      <li>Prefer block or circular bootstrap on weeks. Residual bootstrap is the speed option when DW is near 2.</li>
+      <li>B = 1,000 for a board pack. B = 280 is enough to see the shape on this studio.</li>
+      <li>Brief the interval and the gate, not the p-value alone. Finance can read “TV iROAS 1.4 to 2.1” without a statistics lesson.</li>
+      <li>If classical p &lt; 0.001 and bootstrap p is 0.08, believe the bootstrap. Weekly MMM residuals are clustered.</li>
+      <li>Do not ship a price move unless the permutation test and the CI agree.</li>
+    </ol>
+  </section>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demand forecast</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="overview">
+  {% set active = 'forecast' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Trade promotion</p>
+      <h1>Demand forecasting</h1>
+    </div>
+    <p class="lede">Promo-aware weekly demand models for five retail channels. The forecast is built to decide trade spend — TPR, feature, and display — not just to draw a line. Seasonal naive is the baseline. Ridge ARX adds price, holiday, payday, and promo drivers. An inverse-RMSE ensemble is what we score on holdout. Allocation of the trade budget is on the next page. National trend, residual diagnostics, and the next-quarter volume lock live on <a href="{{ url_for('demand_overview') }}">Demand trends</a>.</p>
+  </header>
+
+  {% set howto_model %}
+  <p>Seasonal naive versus Ridge ARX on log units (price, holiday, payday, TPR, feature, display). Inverse-RMSE ensemble. Channel ordinary least squares reads promo lifts used on Trade allocation.</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Click <strong>Run forecast</strong> (156 weeks, 26 holdout, $180k trade). Pass if ensemble weighted absolute percent error beats naive and the holdout line catches TPR / feature spikes. Then open Trade allocation: optimized profit should beat an equal split.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>Naive wins: not enough promo variation. Misses only on feature weeks: the feature flag is weak. High lift but low recommended spend: margin is thin — that is correct. National volume lock is on Demand trends, not this page.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+
+  <section class="controls">
+    <label>Weeks
+      <input id="nWeeks" type="number" min="80" max="312" step="4" value="156" />
+    </label>
+    <label>Holdout weeks
+      <input id="holdoutWeeks" type="number" min="8" max="52" value="26" />
+    </label>
+    <label>Weekly trade budget ($k)
+      <input id="tradeBudget" type="number" min="40" max="400" step="10" value="180" />
+    </label>
+    <label>Seed
+      <input id="seed" type="number" value="42" />
+    </label>
+    <button type="button" id="runForecast" class="primary">Run forecast</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel wide">
+        <h3>National units: actual vs promo-aware forecast</h3>
+        <p class="explain">Black is summed units across Grocery, Mass, Drug, Club, and E-comm. Teal is the Ridge ARX forecast. The cut is the holdout start. Spikes that both lines catch are usually holiday + TPR. A miss on a feature week means the promo coefficients are weak.</p>
+        <canvas id="fitChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Holdout actual vs ensemble</h3>
+        <p class="explain">Last 26 weeks only. WAPE is the planning metric: total absolute error over total units. Finance uses this more than MAPE on small Drug weeks.</p>
+        <canvas id="holdoutChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Model bake-off (holdout WAPE)</h3>
+        <p class="explain">Lower is better. Seasonal naive copies last year. Ridge ARX sees this year’s promo calendar. Ensemble blends them by inverse RMSE so a weak model cannot dominate.</p>
+        <canvas id="bakeoffChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Promo vs non-promo average units</h3>
+        <p class="explain">Observed lift when TPR is above 8%. This is descriptive, not causal. The structural model on the allocation page is the one used to spend money.</p>
+        <canvas id="promoChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Weekly trade spend ($k)</h3>
+        <p class="explain">What the simulated retailer already spent. The allocation page asks whether that envelope should move toward Drug/E-comm or stay in Mass/Grocery.</p>
+        <canvas id="tradeChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div>
+        <h3>Holdout accuracy by channel</h3>
+        <div id="channelTable"></div>
+      </div>
+      <div>
+        <h3>Observed promo lift</h3>
+        <div id="promoTable"></div>
+      </div>
+    </div>
+    <p class="explain after">Recommended trade mix is on <a href="{{ url_for('forecast_allocation') }}">Trade allocation</a>. Formulas are on <a href="{{ url_for('forecast_methods') }}">Forecast methods</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='forecast.js') }}?v=6"></script>
+</body>
+</html>

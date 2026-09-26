@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Causal production — Amazon Web Services</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=12" />
+</head>
+<body>
+  {% set active = 'causal' %}
+  {% set project = 'causal' %}
+  {% set stage = 'prod' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 03 · Production · Amazon Web Services</p>
+      <h1>Lock the experiment, estimate lift, and publish a decision pack on AWS</h1>
+    </div>
+    <p class="lede">This is the one project that ships on Amazon Web Services (Canada / <code>ca-central-1</code>). Mix modeling and customer lifetime value stay on Azure so a geo-test write cannot overwrite <code>mart_mmm_weekly</code>. Same science as the studio: observational pre/post versus difference-in-differences versus the randomized design.</p>
+  </header>
+  <section class="playbook">
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>Landing zone</h3>
+        <p>Account and region <code>ca-central-1</code>. Lake bucket <code>x-causal-lake-{env}</code>. Prefixes <code>bronze/geo_sales/</code>, <code>bronze/experiments/</code>, <code>gold/mart_causal_geo_week/</code>. Secrets Manager holds the ledger and the treatment-file signer. Public access block on. Versioning on so a rewritten treatment file is an audit event.</p>
+      </article>
+      <article>
+        <h3>After-flight job</h3>
+        <p>EventBridge rule when <code>dim_experiment.status = 'ended'</code> or a Monday 08:00 America/Toronto schedule. Glue jobs land geo-weeks. Data build tool tests the lock. Elastic Container Service task runs the causal engine, writes <code>gold.causal_estimates</code> (estimator, lift, bias vs any known holdout) and a Ship / Watch / Kill note for commercial.</p>
+      </article>
+      <article>
+        <h3>What ships</h3>
+        <p>Image <code>x-causal:{git-commit}</code> on Elastic Container Registry. QuickSight dashboard on gold only. If the design is observational, the pack title says observational. Randomized geo tests get the difference-in-differences number first.</p>
+      </article>
+    </div>
+    <h2>Amazon Web Services in this project</h2>
+    <table>
+      <thead><tr><th>Service</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>Amazon Simple Storage Service</td><td>bronze / gold prefixes, versioned treatment files</td></tr>
+        <tr><td>Amazon Glue</td><td>Geo-week parquet and catalog</td></tr>
+        <tr><td>Amazon Redshift Serverless</td><td><code>mart_causal_geo_week</code></td></tr>
+        <tr><td>Amazon Elastic Container Service</td><td>Causal engine task</td></tr>
+        <tr><td>Amazon EventBridge</td><td>End-of-flight and Monday schedule</td></tr>
+        <tr><td>Amazon QuickSight</td><td>Decision pack, gold only</td></tr>
+      </tbody>
+    </table>
+    <p class="resume-links">
+      <a href="{{ url_for('causal_data_engineering') }}">Data engineering contract</a>
+      <a href="{{ url_for('causal_overview') }}">Development</a>
+      <a href="{{ url_for('mmm_studio') }}#c-aws">Shared AWS from-zero notes (hashes on the MMM file)</a>
+    </p>
+  </section>
+</body>
+</html>

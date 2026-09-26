@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=11" />
+</head>
+<body>
+  {% set active = 'pricing' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Resume 04</p>
+      <h1>Elasticity math and the bandit update</h1>
+    </div>
+    <p class="lede">Online pricing needs two models. The elasticity tells finance the slope. The bandit decides the next price before that slope is fully known.</p>
+  </header>
+  <section class="playbook methods">
+    <h2>Demand and profit</h2>
+    <pre class="formula">U(p) = 420 × (p / 100)^{−1.35}
+margin(p) = 12 × (p / 100) − 5.40
+π(p) = U(p) × margin(p)
+
+Arms p ∈ {92, 96, 100, 104, 108}
+Observed units are lognormal around U(p).</pre>
+    <h2>Elasticity</h2>
+    <pre class="formula">log U_t = a + ε log(p_t / 100) + e_t
+ε̂ is ordinary least squares on the traffic the policy actually served.</pre>
+    <h2>Policies</h2>
+    <pre class="formula">Thompson   draw π_i ~ Normal(mean_i, var_i / n_i); take argmax
+UCB        mean_i + c √(log t / n_i)
+ε-greedy   with probability ε pick a random arm; else the current best
+Random     uniform (baseline)
+
+Regret_t = π(oracle) − π(p_t)</pre>
+    <p>Production replaces the five arms with the live price grid and the reward with contribution after returns. Do not run the bandit on last-click conversions.</p>
+  </section>
+</body>
+</html>

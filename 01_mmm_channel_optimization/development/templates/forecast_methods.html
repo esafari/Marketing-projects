@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forecast methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+</head>
+<body data-page="methods">
+  {% set active = 'forecast_methods' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Trade promotion</p>
+      <h1>Demand models, trade math, and how we estimate</h1>
+    </div>
+    <p class="lede">This stack is built for trade spend allocation and promotional planning. It forecasts units with and without promo, estimates TPR / feature / display lifts by retail channel, then reallocates a fixed trade envelope to raise incremental profit.</p>
+  </header>
+
+  <section class="playbook methods">
+    <p class="jump">
+      <a href="#f-pipeline">Pipeline</a>
+      <a href="#f-dgp">Demand DGP</a>
+      <a href="#f-models">Forecast models</a>
+      <a href="#f-lift">Promo lift</a>
+      <a href="#f-alloc">Allocation</a>
+      <a href="#f-metrics">Metrics</a>
+      <a href="#f-prod">Production</a>
+    </p>
+
+    <h2 id="f-pipeline">Solving approach</h2>
+    <ol class="steps">
+      <li>Build a weekly panel: channel × week of units, list-price index, TPR depth, feature, display, holiday, payday.</li>
+      <li>Hold out the last 26 weeks. Nothing in the bake-off is fit on those weeks.</li>
+      <li>Fit seasonal naive (same week-of-year mean) and Ridge ARX on log units.</li>
+      <li>Fit a channel-level OLS on log units to read TPR, feature, display, and price elasticity.</li>
+      <li>Blend naive and Ridge by inverse holdout RMSE.</li>
+      <li>Turn lift coefficients + Hill saturation into a weekly trade-response curve per channel.</li>
+      <li>SLSQP reallocates the weekly trade budget. Score both plans on incremental margin minus trade cost.</li>
+    </ol>
+
+    <h2 id="f-dgp">What is being forecasted</h2>
+    <p>Five trade channels, not media channels: Grocery, Mass, Drug, Club, E-comm. Units follow a log-linear demand system with channel-specific price elasticity and promo lifts.</p>
+    <pre class="formula">log U_{c,t} = α_c + γ t + season_t + δ_hol holiday_t + δ_pay payday_t
+             + β_c^price log(P_{c,t}/100)
+             + β_c^tpr TPR_{c,t}
+             + β_c^feat Feature_{c,t}
+             + β_c^disp Display_{c,t}
+             + ε_{c,t}
+
+True lifts used in the DGP
+  Grocery   TPR 1.45   Feature 0.28   Display 0.22   ε_price −1.15
+  Mass      TPR 1.70   Feature 0.20   Display 0.18   ε_price −1.40
+  Drug      TPR 1.10   Feature 0.34   Display 0.26   ε_price −0.85
+  Club      TPR 0.85   Feature 0.16   Display 0.30   ε_price −0.70
+  E-comm    TPR 1.95   Feature 0.40   Display 0.08   ε_price −1.55
+
+A TPR of 0.20 in Grocery multiplies units by e^{1.45×0.20} ≈ 1.34 (about +34%).</pre>
+
+    <h2 id="f-models">Forecast models</h2>
+    <h3>1. Seasonal naive</h3>
+    <pre class="formula">Û_{c,t} = mean{ U_{c,s} : s &lt; split, s mod 52 = t mod 52 }</pre>
+    <p>This is the plan many category teams still use: “same week last year.” It is the accuracy floor. Beating it is the first test that promo information is worth the meeting.</p>
+    <h3>2. Ridge ARX (promo-aware)</h3>
+    <pre class="formula">log U = Xθ + e
+X = [t, sin52, cos52, sin26, cos26, log(P/100), holiday, payday,
+     TPR, feature, display, channel dummies]
+
+θ̂ = arg min_θ ||y − Zθ||² + 1.5 ||θ||²
+Z = StandardScaler(X)
+Û = exp(Zθ̂)</pre>
+    <h3>3. Ensemble</h3>
+    <pre class="formula">w_m = 1 / RMSE_m^{holdout}
+Û_ens = (w_naive Û_naive + w_ridge Û_ridge) / (w_naive + w_ridge)</pre>
+    <h3>4. Channel OLS (used for allocation, not the line chart)</h3>
+    <pre class="formula">For each channel c, OLS on train:
+  log U_{c,t} = α + γt + sin + cos + hol + payday + β_p log P
+              + β_tpr TPR + β_feat Feature + β_disp Display</pre>
+    <p>This is the interpretable lift model. Ridge is better at holdout tracking because it shares seasonality across channels. OLS is better at telling a buyer why Drug display is worth the fee.</p>
+
+    <h2 id="f-lift">From coefficients to a promo plan</h2>
+    <pre class="formula">Approximate weekly incremental units at trade spend s_c:
+
+depth  = clip(0.60 s_c / cost_of_a_point_of_TPR, 0, 0.40)
+feat   = clip(0.25 s_c / feature_fee, 0, 1)
+disp   = clip(0.15 s_c / display_fee, 0, 1)
+
+raw_lift = β_tpr depth + β_feat feat + β_disp disp
+sat      = s_c / (K_c + s_c)          # Hill, s = 1
+ΔU_c(s)  = base_c * max(raw_lift, 0) * sat * 1.15</pre>
+    <p>The 60/25/15 split is the default tactic mix inside a trade dollar. K_c is a channel saturation constant (Mass saturates later than Drug). Changing the mix is a buyer decision; the optimizer moves the dollar envelope first.</p>
+
+    <h2 id="f-alloc">Trade allocation (SLSQP)</h2>
+    <pre class="formula">max_s   Σ_c [ H * ΔU_c(s_c) * 4.20 * margin_c  −  H * s_c ]
+
+s.t.    Σ_c s_c = B          weekly trade budget ($k)
+        4 ≤ s_c ≤ 0.55 B     no channel is starved or given the whole bag
+
+H = horizon weeks (the holdout length on this site)
+4.20 = contribution $ per unit before channel margin
+Equal-split twin: s_c = B / 5
+
+Profit lift = π(s*) − π(s_equal)   same B, different mix</pre>
+    <p>This is how investment efficiency shows up: not more trade money, a different channel split. ROI_c = (H ΔU_c 4.20 margin_c) / (H s_c). Efficiency_c = ΔU_c / s_c.</p>
+
+    <h2 id="f-metrics">How we know the forecast is good enough to spend against</h2>
+    <table>
+      <thead><tr><th>Metric</th><th>Formula</th><th>Planning use</th></tr></thead>
+      <tbody>
+        <tr><td>WAPE</td><td>Σ|U − Û| / Σ|U|</td><td>National volume miss. Target under ~8% on this DGP.</td></tr>
+        <tr><td>MAPE</td><td>mean |U − Û| / |U|</td><td>Punishes Drug/Club. Use with WAPE, not alone.</td></tr>
+        <tr><td>RMSE</td><td>sqrt(mean error²)</td><td>Ensemble weights.</td></tr>
+        <tr><td>Bias</td><td>mean(Û − U)</td><td>Positive = overbuy. Dangerous for supply.</td></tr>
+        <tr><td>Holdout R²</td><td>1 − SS_res/SS_tot</td><td>Did we beat a flat line on unseen weeks?</td></tr>
+        <tr><td>Profit lift</td><td>π_opt − π_equal</td><td>The only number that justifies moving the trade lock.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="f-prod">How to estimate this on real shipments</h2>
+    <ol class="steps">
+      <li>Grain: week × banner or channel × item (or item cluster). Units = shipments or POS, pick one and keep it.</li>
+      <li>Promo file: TPR depth from invoice/scan, feature/display from retailer recap or Circana. Do not use “any discount” as TPR.</li>
+      <li>Fit the log-demand OLS by channel (or store cluster). Keep price in the model or TPR will steal the everyday-price story.</li>
+      <li>Bake off against seasonal naive and last year’s locked calendar on a rolling 13-week origin, not one lucky holdout.</li>
+      <li>Feed the lift curves into the allocator with this year’s trade budget and each banner’s fee card (feature and display are not free).</li>
+      <li>Constraint the solver to retailer contracts (min feature weeks, Club shipper commitments) before you show a “optimal” mix.</li>
+      <li>Join to MMM: media creates the baseline the trade plan harvests. Do not double-count a holiday TV flight as trade lift.</li>
+    </ol>
+    <p class="explain">MMM asks what national media did to sales. CLV asks which buyers that media created. This page asks where the next trade dollar should go so the promo calendar is not an even split across banners.</p>
+  </section>
+</body>
+</html>

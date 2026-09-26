@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investment allocation</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="investment">
+  {% set active = 'attr_invest' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Incrementality</p>
+      <h1>Investment allocation: spend and price</h1>
+    </div>
+    <p class="lede">Two media plans on the same weekly envelope, then a price recommendation. Last-touch copies the platform report (Search-heavy). Incremental uses MMM iROAS and Hill saturation. Price is a second lever: the model searches index 96–104 and picks the contribution-profit maximum given the incremental mix.</p>
+  </header>
+
+  <p id="status" class="status" hidden></p>
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Weekly media $k: last-touch vs incremental</h3>
+        <p class="explain">Rust follows last-click shares. Navy follows incremental iROAS. Both sum to the same budget. Moving money from Search to TV is the usual correction once price and carryover are in the model.</p>
+        <canvas id="mixChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>iROAS at the incremental mix</h3>
+        <p class="explain">Extra weekly sales from $1k more at the recommended spend. A bar below 1.0 is on a bound or on the flat of the Hill curve. Price is not on this chart — it is a level, not a spend line.</p>
+        <canvas id="iroasChart"></canvas>
+      </div>
+      <div class="panel wide">
+        <h3>Profit vs price index (incremental mix held fixed)</h3>
+        <p class="explain">Contribution profit = 38% × (baseline + media + price effect) × (index/100) − media spend. Elasticity pulls units down as the index rises; revenue per unit goes up. The peak is the recommended list-price stance, not a promo depth.</p>
+        <canvas id="priceOptChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div>
+        <h3>Last-touch plan</h3>
+        <div id="lastTable"></div>
+      </div>
+      <div>
+        <h3>Incremental plan</h3>
+        <div id="incPlanTable"></div>
+      </div>
+    </div>
+  </section>
+  <script src="{{ url_for('static', filename='attribution.js') }}?v=6"></script>
+</body>
+</html>

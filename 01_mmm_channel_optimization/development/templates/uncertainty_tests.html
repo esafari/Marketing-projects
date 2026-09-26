@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Statistical tests</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="tests">
+  {% set active = 'uncertainty_tests' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Inference</p>
+      <h1>Hypothesis tests on the recommendations</h1>
+    </div>
+    <p class="lede">Each row is a decision question, not a coefficient dump. Bootstrap p-values ask whether the data can produce the observed effect if the null were true. Classical OLS p-values sit beside them so you can see when iid t-tests are too sure of themselves.</p>
+  </header>
+
+  <p id="status" class="status" hidden></p>
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Bootstrap p-values</h3>
+        <p class="explain">Below 0.05 we reject the null at 5%. One-sided tests are used for “is this positive / above hurdle?” Two-sided tests are used for contrasts and price.</p>
+        <canvas id="pChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Price permutation null</h3>
+        <p class="explain">Shuffle log-price, refit, collect the fake β_P. The observed coefficient should sit outside the null pile if price is identified. This does not assume residual normality.</p>
+        <canvas id="permChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="wide-table">
+        <h3>Tests</h3>
+        <div id="testTable"></div>
+      </div>
+      <div class="wide-table">
+        <h3>Classical OLS (for comparison)</h3>
+        <div id="olsTable"></div>
+      </div>
+    </div>
+  </section>
+  <script src="{{ url_for('static', filename='uncertainty.js') }}?v=6"></script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLV methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+</head>
+<body data-page="methods">
+  {% set active = 'clv_methods' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Customer lifetime value</p>
+      <h1>Models, formulas, and how we estimate</h1>
+    </div>
+    <p class="lede">CLV here is expected <em>continuing-box contribution margin</em> over a 26-week CRM horizon for an X Canada meal-kit household (HelloFresh-class). First-box promo is stripped out of Gamma-Gamma. Skip is not churn. BG/NBD and Gamma-Gamma are the Fader–Hardie pair. Ridge is a second score used only out-of-fold.</p>
+  </header>
+
+  <section class="playbook methods">
+    <p class="jump">
+      <a href="#c-pipeline">Pipeline</a>
+      <a href="#c-dgp">Customer DGP</a>
+      <a href="#c-rfm">RFM</a>
+      <a href="#c-bgnbd">BG/NBD</a>
+      <a href="#c-gg">Gamma-Gamma</a>
+      <a href="#c-clv">CLV formula</a>
+      <a href="#c-ml">Ridge</a>
+      <a href="#c-val">Validation</a>
+      <a href="#c-prod">Production</a>
+    </p>
+
+    <h2 id="c-pipeline">Solving approach</h2>
+    <ol class="steps">
+      <li>Simulate (or ingest) a purchase log: customer, week, amount, acquisition channel, funnel.</li>
+      <li>Cut at a snapshot week. Everything before the cut is history. Everything after is holdout.</li>
+      <li>Build RFM: frequency = repeat orders, recency = time of last purchase since first, T = age, AOV, monetary.</li>
+      <li>Fit BG/NBD by maximum likelihood on (frequency, recency, T). That gives P(alive) and expected future orders.</li>
+      <li>Fit Gamma-Gamma by MLE on customers with at least one repeat purchase. That gives expected AOV.</li>
+      <li>CLV_prob = E[orders in horizon] × E[AOV] × margin.</li>
+      <li>Fit Ridge on RFM + channel + P(alive) to holdout margin, with 5-fold out-of-fold predictions.</li>
+      <li>Blend = 0.65 × CLV_prob + 0.35 × CLV_ridge. Rank, segment, and score holdout lift.</li>
+    </ol>
+
+    <h2 id="c-dgp">Meal-kit data-generating process</h2>
+    <p>Each household is acquired by TV, YouTube, Referral, Social, or Paid Search. They pick a 2-person (~CAD 79) or family (~CAD 139) plan. The first box always ships at a deep discount. Then each week they skip, take a continuing box, or lapse. Paid search has the steepest promo cliff (about half never take box two).</p>
+    <table>
+      <thead><tr><th>Channel</th><th>Funnel</th><th>First-box off</th><th>No 2nd box</th><th>Weekly skip</th><th>Weekly lapse</th><th>Family share</th></tr></thead>
+      <tbody>
+        <tr><td>Referral</td><td>TOFU</td><td>25%</td><td>14%</td><td>9%</td><td>2.2%</td><td>62%</td></tr>
+        <tr><td>TV</td><td>TOFU</td><td>40%</td><td>22%</td><td>11%</td><td>2.8%</td><td>58%</td></tr>
+        <tr><td>YouTube</td><td>TOFU</td><td>45%</td><td>26%</td><td>13%</td><td>3.2%</td><td>50%</td></tr>
+        <tr><td>Social</td><td>MOFU</td><td>50%</td><td>38%</td><td>18%</td><td>4.5%</td><td>38%</td></tr>
+        <tr><td>Paid Search</td><td>BOFU</td><td>60%</td><td>52%</td><td>22%</td><td>5.5%</td><td>28%</td></tr>
+      </tbody>
+    </table>
+    <pre class="formula">plan_i = 4-person with probability family_p_channel, else 2-person
+list_i ≈ $79 (2p) or $139 (family), lognormal noise 8%
+first box always ships at list_i × (1 − first_disc_channel)
+with probability early_churn_channel: stop (one-and-done)
+else each later week:
+  lapse with hazard dropout_week × 1.35 if fewer than 4 boxes
+  else skip with probability skip_i
+  else ship continuing box at list_i × (1 − small loyalty promo)
+
+Gamma-Gamma AOV uses continuing boxes only.
+CLV_prob = E[future boxes] × E[continuing AOV] × 0.32
+First-box contribution is planned at 6% and is not the rank object.</pre>
+
+    <h2 id="c-rfm">RFM at the snapshot</h2>
+    <pre class="formula">x_i  = frequency = (# orders in (0, T]) − 1     # repeat buys
+t_x  = recency   = time of last order − first order
+T_i  = age       = snapshot − acquire week
+m_i  = AOV       = mean order value
+M_i  = monetary  = sum of order values</pre>
+    <p class="explain">BG/NBD needs x, t_x, T. Gamma-Gamma needs x and m for customers with x ≥ 1. One-time buyers still get a P(alive) and the population mean AOV.</p>
+
+    <h2 id="c-bgnbd">BG/NBD (Fader, Hardie, Lee 2005)</h2>
+    <p>Purchase rate λ ~ Gamma(r, α). Dropout probability p ~ Beta(a, b), independent of λ. After each purchase the customer leaves with probability p, otherwise waits Exp(λ) for the next order.</p>
+    <pre class="formula">Likelihood for customer i (x, t_x, T):
+
+A1 = ln Γ(r+x) − ln Γ(r) + r ln α
+A2 = ln Γ(a+b) + ln Γ(b+x) − ln Γ(b) − ln Γ(a+b+x)
+A3 = −(r+x) ln(α + T)
+A4 = ln a − ln(b+x−1) − (r+x) ln(α + t_x)     if x > 0
+
+ℓ_i = A1 + A2 + A3                 if x = 0
+ℓ_i = A1 + A2 + log(e^{A3} + e^{A4})   if x > 0
+
+(r, α, a, b) = arg max Σ ℓ_i
+  with a > 1 so expected-purchase formulas stay finite.</pre>
+    <h3>P(alive) and expected future orders</h3>
+    <pre class="formula">P(alive | x, t_x, T) = 1 / (
+    1 + [a / (b + x)] * [(α + T)/(α + t_x)]^{r+x}
+)
+
+E[X*(t) | x, t_x, T] = P(alive)
+  * (a + b + x − 1) / (a − 1)
+  * ( 1 − [(α+T)/(α+T+t)]^{r+x}
+        * ₂F₁(r+x, b+x; a+b+x−1; t/(α+T+t)) )</pre>
+    <p>t is the horizon in weeks (26 on the default run). ₂F₁ is the Gaussian hypergeometric function.</p>
+
+    <h2 id="c-gg">Gamma-Gamma spend model</h2>
+    <p>Order values are independent of the arrival process. Customer mean spend heterogeneity is Gamma. We use the sufficient-stat likelihood on (x, m).</p>
+    <pre class="formula">ℓ(p, q, ν | m, x) =
+    ln Γ(p x + q) − ln Γ(p x) − ln Γ(q)
+  + q ln ν + (p x − 1) ln m + p x ln x
+  − (p x + q) ln(x m + ν)
+
+E[M | m, x] = [(q − 1) / (p x + q − 1)] * (ν/p + x m)
+  for x ≥ 1
+
+E[M] population = ν p / (q − 1)
+  for one-time buyers (x = 0)</pre>
+    <p>Need q > 1 so the mean exists. Amounts are assumed independent of frequency — if high-frequency buyers systematically have smaller baskets, check that residual before shipping.</p>
+
+    <h2 id="c-clv">CLV formulas used on these pages</h2>
+    <pre class="formula">CLV_prob,i = E[X*(H) | x_i, t_x,i, T_i] * E[M_i] * margin
+
+CLV_ridge,i = max(0, x_i' β̂)     # OOF prediction of holdout * margin
+
+CLV_blend,i = 0.65 CLV_prob,i + 0.35 CLV_ridge,i
+
+Value tier: High = top 20% of blend, Medium = next 40%, Low = bottom 40%</pre>
+    <p>Default continuing-box margin is 0.32 (variable contribution after food and last-mile, not revenue and not first-box promo). Change it on the overview page. First-box contribution is planned at 6% and is not the rank object. Heuristic CLV is (x / T) × continuing AOV × H × P(alive) × margin — a sanity check only.</p>
+
+    <h2 id="c-ml">Ridge (second model)</h2>
+    <pre class="formula">y_i = holdout spend_i × margin
+
+features = [x, t_x, T, monetary, AOV, continuing AOV, discount rate, return rate,
+            P(alive), skip rate, plan size, first-box discount, n skips,
+            funnel dummies, channel dummies]
+
+z = StandardScaler(features)
+β̂ = arg min_β  Σ (y − zβ)² + 2.5 ||β||²
+
+Predictions on the site are 5-fold out-of-fold:
+  each customer is scored by a model that did not see that customer's y.</pre>
+    <p>Ridge is there to pick up return rate and promo depth that BG/NBD ignores. It is not a substitute for the probabilistic model on new customers with short history.</p>
+
+    <h2 id="c-val">How we know the scores are usable</h2>
+    <table>
+      <thead><tr><th>Metric</th><th>What it is</th><th>How to read it</th></tr></thead>
+      <tbody>
+        <tr><td>Spearman vs holdout margin</td><td>Rank correlation</td><td>&gt;0.4 is useful for ranking CRM; &gt;0.6 is strong on this DGP</td></tr>
+        <tr><td>Holdout R²</td><td>Variance of future margin explained by blend</td><td>Level accuracy; often weaker than rank</td></tr>
+        <tr><td>MAPE on buyers who spent</td><td>Percent miss among customers with holdout &gt; $1</td><td>Inflated by small tickets; use with lift</td></tr>
+        <tr><td>Decile lift</td><td>Mean holdout in decile k / overall mean</td><td>Must be monotone. Top-decile lift of 2–4× is the CRM test</td></tr>
+        <tr><td>Ridge fold R²</td><td>Mean test R² across 5 folds</td><td>If this is high and Spearman is not, the model is fitting levels not ranks</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="c-prod">How to estimate this on real customers</h2>
+    <ol class="steps">
+      <li>Build a purchase fact at order grain: customer_id, order_ts, net_amount, channel of first click or first-touch campaign, returns flag.</li>
+      <li>Choose a snapshot (e.g. last Sunday) and a horizon that matches your CRM cycle (13 or 26 weeks).</li>
+      <li>Exclude wholesale, employees, and gift-card redemptions. Use net of returns for amounts.</li>
+      <li>Fit BG/NBD and Gamma-Gamma on customers with T ≥ 8 weeks. Grid a mild penalizer if a, b wander.</li>
+      <li>Calibrate predicted spend to a later holdout quarter. If Gamma-Gamma overstates AOV for Search, add a channel intercept to E[M].</li>
+      <li>Do not use last-click revenue as the CLV target. Do not score CLV on the same window used to fit without OOF or a time cut.</li>
+      <li>Join to MMM: expected new-buyer CLV by acquisition channel × expected new buyers from the funnel mix. That is how a TV dollar can be worth more than its short-run MMM sale.</li>
+    </ol>
+    <p class="explain">The MMM page answers “what did media do to this week’s sales?” This CLV stack answers “which buyers did that media create, and what are they worth next half-year?” Both are needed before you starve TOFU.</p>
+  </section>
+</body>
+</html>

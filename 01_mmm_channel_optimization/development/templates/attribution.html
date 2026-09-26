@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attribution frameworks</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="overview">
+  {% set active = 'attr' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Incrementality</p>
+      <h1>Media mix and attribution frameworks</h1>
+    </div>
+    <p class="lede">Estimate the incremental impact of media spend and price, then compare that to last-touch, first-touch, linear, and time-decay credit. The funnel MMM studio is a 2SLS structural system. This page is the attribution layer: which framework is closest to truth, what +$10k or +1 price-index point is worth, and how badly last-click starves TV.</p>
+  </header>
+
+  {% set howto_model %}
+  <p>Incremental media mix versus last-touch, first-touch, linear, and time-decay. Price is a second lever. Investment allocation then spends one envelope two ways (last-touch vs incremental) and searches a price index 96–104.</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Run the attribution engine. Pass if last-touch over-credits Paid Search versus incremental, TV is not zero incremental, and a +$10k or +1 price point has a signed effect. Incremental profit on the investment page should beat last-touch.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>Last-touch ≈ incremental: no upper-funnel variation. Price ≈ 0: price did not move in blocks. Search still wins incremental: Y is a platform conversion. One channel takes the whole envelope: check Hill K and then Uncertainty before you ship.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+
+
+  <section class="controls">
+    <label>Weeks
+      <input id="nWeeks" type="number" min="80" max="312" step="4" value="156" />
+    </label>
+    <label>Holdout weeks
+      <input id="holdoutWeeks" type="number" min="8" max="52" value="26" />
+    </label>
+    <label>Weekly media budget ($k)
+      <input id="mediaBudget" type="number" min="60" max="300" step="10" value="140" />
+    </label>
+    <label>Seed
+      <input id="seed" type="number" value="42" />
+    </label>
+    <button type="button" id="runAttr" class="primary">Run frameworks</button>
+  </section>
+  <p id="status" class="status" hidden></p>
+
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel wide">
+        <h3>Credit share by framework (%)</h3>
+        <p class="explain">Each group of bars is a channel. Black is true incremental share from the DGP. Rust last-touch piles credit on Search. Navy MMM and teal calibrated MMM should sit near black. Share MAE is the average absolute miss versus truth — that is the framework score.</p>
+        <canvas id="shareChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Framework error vs true incremental</h3>
+        <p class="explain">Lower share MAE is better. Last-touch and first-touch usually lose. Time-decay is a milder version of the same bias. Lift-calibrated MMM applies geo-lift scales. When MMM already recovers truth, those priors can over-correct — that is useful, not a bug.</p>
+        <canvas id="maeChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Incremental sales of +$10k / +1 price point</h3>
+        <p class="explain">Media bars are extra weekly sales $k from $10k more spend at the historical mean. The price bar is the sales change from raising the index one point. Negative price impact is expected: you sell less, but margin per unit rises — that trade-off is on the investment page.</p>
+        <canvas id="incChart"></canvas>
+      </div>
+      <div class="panel wide">
+        <h3>Holdout sales fit (incremental MMM)</h3>
+        <p class="explain">OLS on Hill-adstocked spend plus log price, season, and holiday. Fit on the first 80%, scored on the last 26 weeks. If this line tracks, the incrementals above are usable. If it misses holiday price cuts, the elasticity is the first suspect.</p>
+        <canvas id="fitChart"></canvas>
+      </div>
+      <div class="panel wide">
+        <h3>Price contribution: true vs estimated ($k)</h3>
+        <p class="explain">Weekly sales attributed to the price index. When price is above 100, this series is negative. Matching the two lines means spend did not steal the price story — the usual omitted-variable failure when price is left out of MMM.</p>
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="wide-table">
+        <h3>Framework shares (%)</h3>
+        <div id="shareTable"></div>
+      </div>
+      <div class="wide-table">
+        <h3>Incrementals</h3>
+        <div id="incTable"></div>
+      </div>
+    </div>
+    <p class="explain after">Spend-plus-price allocation is on <a href="{{ url_for('attr_investment') }}">Investment allocation</a>. Formulas are on <a href="{{ url_for('attr_methods') }}">Attribution methods</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='attribution.js') }}?v=6"></script>
+</body>
+</html>

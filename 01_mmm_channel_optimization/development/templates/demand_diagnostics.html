@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demand diagnostics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=10" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="diagnostics">
+  {% set active = 'demand_diag' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Diagnostic analytics</p>
+      <h1>Why demand moved — and whether the forecast is honest</h1>
+    </div>
+    <p class="lede">Trend and season are already stripped on the previous page. This page reads the residual, the driver weights, year-over-year acceleration, and the weeks that do not fit. Planning should not raise intro-code depth or rewrite seasonality until these diagnostics have a named cause.</p>
+  </header>
+
+  {% set howto_model %}
+  <p>Same national series as Demand trends. Here you inspect what the decomposition could not explain: residual, standardized Ridge weights, last-26 vs prior-26 trend slope, price vs promo context, and |z| ≥ 2.5 anomaly weeks.</p>
+  {% endset %}
+  {% set howto_test %}
+  <p>Load the last run (or run from Demand trends first). Pass if you can point to a mean-break near week 80, Durbin–Watson is reported, lag-1 residual correlation is not 1, and each anomaly row has a reason you could take to operations.</p>
+  {% endset %}
+  {% set howto_diag %}
+  <p>Holidays all flagged: seasonal term is too weak. Promo residual &lt; −8 while quiet weeks are fine: depth is not delivering. Price step lines up with the mean break: treat it as a regime, not a new Fourier term. Acceleration negative after the break: the annual plan must not average through week 80.</p>
+  {% endset %}
+  {% include '_howto.html' %}
+
+  <p id="status" class="status" hidden></p>
+  <section id="results" class="results" hidden>
+    <div id="story" class="story"></div>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel wide">
+        <h3>Residual after trend and season</h3>
+        <p class="explain">What the 13-week trend plus week-of-year season did not explain. Clusters of negative residuals on deep-promo weeks mean the discount is papering over a soft trend. Isolated spikes are usually operations or weather.</p>
+        <canvas id="residChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Standardized driver weights</h3>
+        <p class="explain">Ridge coefficients on scaled features. Lag 1 and lag 52 will dominate a persistent series. The planning-relevant bars are price, promo depth, holiday, and the slow week trend.</p>
+        <canvas id="driverChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Trend slope: last 26 weeks versus the 26 before</h3>
+        <p class="explain">Units per week on the extracted trend. Acceleration is recent slope minus prior slope. Negative acceleration after a level shift is the regime the annual plan must not average through.</p>
+        <canvas id="slopeChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Price index versus promo depth</h3>
+        <p class="explain">Context for the residual. A price step that lines up with the detected mean break is the usual X-like list-price reset, not a seasonal story.</p>
+        <canvas id="driverSeriesChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div class="wide-table">
+        <h3>Anomaly weeks (|z| at least 2.5)</h3>
+        <div id="anomalyTable"></div>
+      </div>
+      <div>
+        <h3>Driver notes</h3>
+        <div id="driverTable"></div>
+      </div>
+    </div>
+    <p class="explain after">The volume lock and Grow / Hold / Cut gates are on <a href="{{ url_for('demand_overview') }}">Demand trends</a>. Formulas are on <a href="{{ url_for('demand_methods') }}">Demand methods</a>.</p>
+  </section>
+  <script src="{{ url_for('static', filename='demand.js') }}?v=1"></script>
+</body>
+</html>

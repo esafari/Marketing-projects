@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Causal problem statement</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+</head>
+<body>
+  {% set active = 'causal' %}
+  {% set project = 'causal' %}
+  {% set stage = 'problem' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Project 03 · Problem statement</p>
+      <h1>Meal-kit causal questions — pick the estimator that matches the design</h1>
+    </div>
+    <p class="lede">X Canada is a weekly meal-kit subscription with the same economics as HelloFresh: a cheap first box, then skip / pause / cancel, win-back coupons, price-per-serving, and TV plus digital acquisition. A national mix model can be right on average and still be wrong about a first-box YouTube burst, a January price harvest, an Ontario TV flight, or a $4.99 homepage badge. This project is a <strong>multi-problem causal suite</strong>. Each method has its own real marketing problem and a test you can run.</p>
+  </header>
+  <section class="playbook">
+    <h2>Company setting</h2>
+    <p>Think HelloFresh, Goodfood, or Factor — a weekly meal kit. Revenue is ship-week boxes. The hard marketing problems are not “did the dashboard go up.” They are: first-box acquisition that looks cheap because last-click harvests brand search; everyday price-per-serving raised in January when people were going to subscribe anyway; a 40% win-back redeemed by people who still open the app; a pause-save discount taken by loyal family plans who never needed it; a national New Year flight with no holdout because brand TV is national; a homepage that stacks “$4.99 a serving” with free first delivery. Those are twelve different designs. One estimator cannot cover them.</p>
+
+    <h2>Problem</h2>
+    <p>Commercial teams roll extra YouTube into metros that already have the fastest first-box growth. Pricing harvests New Year demand. CRM mails 40% off to cancels who were coming back. Brand runs a national resolution flight with no control metro. The same 50% stay offer helps skippers and wastes margin on weekly loyalists. Each of those is a <em>different</em> causal problem. This project states twelve of them, each with units, a naive trap, and a test. In the lab the true effect is known, so we score bias instead of arguing from narrative.</p>
+
+    <h2>Scope</h2>
+    <div class="q-grid howto-grid">
+      <article>
+        <h3>In scope</h3>
+        <p>Twelve identification problems, each with its own design: geo difference-in-differences, cost-shock instruments for price, synthetic control for a single province, inverse probability weights for offer take-up, national interrupted time series, double machine learning with rich covariates, S/T/X meta-learners for heterogeneous effects, 2-by-2 site tests, bootstrap intervals, t-test and ANOVA, two uncertainty recipes, and a TARNet-style neural CATE. Production still lands on Amazon Web Services so these writes cannot overwrite the Azure mix-model mart.</p>
+      </article>
+      <article>
+        <h3>Out of scope</h3>
+        <p>National weekly budget optimization (project 01). Customer lifetime scores (project 02). Creative multivariate tests, synthetic control at 200 geos, CUPED, and continuous dose-response as the v1 ship. Changing the treatment file after lock.</p>
+      </article>
+      <article>
+        <h3>Decision this model is allowed to change</h3>
+        <p>Whether a first-box YouTube burst, price-per-serving hike, Ontario TV flight, 40% win-back, New Year package, pause-save, or $4.99 homepage is called incremental; who gets the next discount; and whether an observational readout is allowed in the finance pack at all.</p>
+      </article>
+    </div>
+
+    <h2>Questions this project answers (one per test)</h2>
+    <ol>
+      <li>First-box YouTube in already-hot metros: incremental first boxes, or January growth we selected on?</li>
+      <li>Everyday price-per-serving: if we raise it after New Year, how many weekly boxes do we lose?</li>
+      <li>Ontario-only brand TV: what would Ontario first boxes have been without the flight?</li>
+      <li>Win-back 40% off next two boxes: extra boxes on the cancel file, not on self-selected redeemers?</li>
+      <li>National New Year flight with no holdout: what would first boxes have done if the package had not run?</li>
+      <li>Pause-to-skip / 50% stay: extra boxes after we partial out plan size, tenure, and discount history?</li>
+      <li>Who should get the 50% stay offer — at-risk skippers, or also loyal weekly family plans?</li>
+      <li>Homepage 2-by-2: does “$4.99 a serving” plus free first delivery amplify first-box conversion?</li>
+      <li>Checkout meal-picker A/B: how wide is +2.4 if we had drawn a different week of traffic?</li>
+      <li>Did the $4.99 badge move first-box conversion, and do the four landing cells differ?</li>
+      <li>Reactivation SMS: do two 90% intervals both sit above zero before we blast the next cancel file?</li>
+      <li>Deeper first-box discount: does a small two-head net beat a linear T-learner on who actually needs it?</li>
+    </ol>
+
+    <h2>Approaches we considered</h2>
+    <table>
+      <thead><tr><th>Approach</th><th>What it does</th><th>Why we did not stop there</th></tr></thead>
+      <tbody>
+        <tr><td>Treated-only pre/post</td><td>After minus before on treated geos.</td><td>Confounds growth, season, and treatment. The usual “it worked” slide.</td></tr>
+        <tr><td>National mix-model coefficient</td><td>Uses project 01 spend columns.</td><td>Wrong grain. Cannot see who was treated. Easy to call a correlation a launch effect.</td></tr>
+        <tr><td>Matching on last week’s sales only</td><td>Pairs geos that look similar at launch.</td><td>Does not fix diverging pre-trends. Still observational.</td></tr>
+        <tr><td>Synthetic control / matrix completion</td><td>Richer counterfactual for one treated unit.</td><td>Right for a later single-province launch. Heavier than the bias lesson we need first.</td></tr>
+        <tr><td>Observational suite plus randomized difference-in-differences</td><td>Show the same estimators on a confounded rollout and on a proper geo trial.</td><td><strong>Selected.</strong> Stakeholders see why the number moved, not just a preferred estimator.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Why we selected this approach</h2>
+    <ul>
+      <li>The failure mode is selection, not lack of a fancy estimator. We need the bad number and the better number on one page.</li>
+      <li>Difference-in-differences is the language commercial already uses for “test versus control markets.”</li>
+      <li>Two-way ordinary least squares is the regression form of the same contrast; if it disagrees, the panel is sick.</li>
+      <li>Elasticity-style log change is what pricing and media people quote; we keep it so they can see it inherit the same bias.</li>
+      <li>A known true lift in the lab is the only honest unit test for “did we separate impact from correlation.”</li>
+    </ul>
+
+    <h2>Assumptions</h2>
+    <ul>
+      <li><strong>Stable unit treatment.</strong> Treating Toronto does not spill demand into a control FSA through ads or fulfillment. If it does, we understate interference, not just lift.</li>
+      <li><strong>Locked assignment.</strong> After <code>lock_ts</code>, a geo cannot move from control to treated in gold. Rewrites are audit events on Amazon Simple Storage Service versioning.</li>
+      <li><strong>Parallel trends (for DiD).</strong> Required on the observational design; we do not assume it. The randomized design is what makes the assumption plausible.</li>
+      <li><strong>Outcome.</strong> Ship-week net boxes or revenue, same spirit as mix-model <code>Y</code>, never Google conversion value.</li>
+      <li><strong>One treatment per test.</strong> Each card is on/off (or a 2-by-2), not a continuous bid or five stacked tactics on the same row.</li>
+      <li><strong>Label the design.</strong> Missing randomization log means the row stays observational. The pack title must say so.</li>
+    </ul>
+
+    <h2>The twelve problem statements</h2>
+    <p>Each block below is the full problem for one test. Open the suite to run the matching estimator.</p>
+    {% for method in suite_methods %}
+    <article class="lab-card" id="problem-{{ method.id }}" style="margin: 0 0 18px;">
+      <p class="kicker">{{ loop.index }} / 12 · {{ method.id }}</p>
+      <p class="commercial">{{ method.commercial }}</p>
+      <h3>{{ method.title }}</h3>
+      <p class="problem-lead">{{ method.problem }}</p>
+      <div class="problem-grid">
+        <article>
+          <h4>Situation</h4>
+          <p>{{ method.situation }}</p>
+        </article>
+        <article>
+          <h4>Decision this number is allowed to change</h4>
+          <p>{{ method.decision }}</p>
+        </article>
+        <article>
+          <h4>Units and grain</h4>
+          <p>{{ method.units }}</p>
+        </article>
+        <article>
+          <h4>Why the naive number is wrong</h4>
+          <p>{{ method.naive_trap }}</p>
+        </article>
+        <article class="wide">
+          <h4>What success looks like</h4>
+          <p>{{ method.success }}</p>
+        </article>
+      </div>
+      <p><a href="{{ url_for('causal_suite') }}#card-{{ method.id }}">Open this test on the suite</a></p>
+    </article>
+    {% endfor %}
+
+    <h2>What would change the choice</h2>
+    <p>If we have one large treated province and many donors, we add synthetic control as a second estimator — we do not delete difference-in-differences. If units interfere (national television leaking into control geos), we redesign the experiment; we do not “fix it” in ordinary least squares. Mix-model budget questions stay on Azure in project 01.</p>
+    <p class="resume-links">
+      <a href="{{ url_for('resume_home') }}#p03">Run the geo test on the lab</a>
+      <a href="{{ url_for('causal_suite') }}">Run all 12 suite tests</a>
+      <a href="{{ url_for('causal_data_engineering') }}">Data engineering</a>
+      <a href="{{ url_for('causal_overview') }}">Development</a>
+      <a href="{{ url_for('causal_production') }}">Production — Amazon Web Services</a>
+    </p>
+  </section>
+</body>
+</html>

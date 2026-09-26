@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attribution methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6" />
+</head>
+<body data-page="methods">
+  {% set active = 'attr_methods' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Incrementality</p>
+      <h1>Models, frameworks, and how we estimate incrementality</h1>
+    </div>
+    <p class="lede">This stack develops a media mix model and a set of marketing attribution frameworks so spend and pricing decisions can be scored on incremental sales, then used to reallocate a fixed investment envelope.</p>
+  </header>
+
+  <section class="playbook methods">
+    <p class="jump">
+      <a href="#a-pipe">Pipeline</a>
+      <a href="#a-mmm">Media mix</a>
+      <a href="#a-price">Pricing</a>
+      <a href="#a-fw">Attribution frameworks</a>
+      <a href="#a-cal">Calibration</a>
+      <a href="#a-iroas">iROAS</a>
+      <a href="#a-alloc">Allocation</a>
+      <a href="#a-prod">Production</a>
+    </p>
+
+    <h2 id="a-pipe">Solving approach</h2>
+    <ol class="steps">
+      <li>Simulate (or ingest) weekly sales, price index, holiday, and spend on TV, Social, Search, Email.</li>
+      <li>Transform spend with geometric adstock and Hill saturation. Price enters as log(P/100).</li>
+      <li>Fit an incremental MMM by OLS on the first 80% of weeks. Hold out the last 26.</li>
+      <li>Build last-touch, first-touch, linear, and time-decay credits from a Search-heavy touch process.</li>
+      <li>Compare each framework’s channel shares to true incremental shares (DGP). Score with share MAE.</li>
+      <li>Scale MMM totals by geo-lift factors (Search down, Social slightly up) to get a calibrated view.</li>
+      <li>Compute iROAS and the sales effect of +1 price-index point. Reallocate media with SLSQP, then search price 96–104.</li>
+    </ol>
+
+    <h2 id="a-mmm">Incremental media mix model</h2>
+    <pre class="formula">A_{c,t} = spend_{c,t} + θ_c A_{c,t−1}
+x̃_{c,t} = A_{c,t} / (K_c + A_{c,t})
+
+Y_t = β0 + γ t + season_t + δ holiday_t
+    + β_P log(P_t / 100)
+    + Σ_c β_c x̃_{c,t}
+    + ε_t
+
+Fit: OLS on train weeks. Price stays in the equation so media
+cannot steal everyday-price movement.</pre>
+    <p>True DGP betas: TV 210, Social 105, Search 155, Email 48, price scale 420 (on log price). TV flights on/off so carryover is identified. Search is always-on and last-touch dominant — that is the trap.</p>
+
+    <h2 id="a-price">Pricing incrementality</h2>
+    <pre class="formula">True:   price_effect_t = 420 * log(P_t / 100)
+Est.:   price_effect_t = β̂_P * log(P_t / 100)
+
++1 index point at mean P̄:
+  ΔlogP = log((P̄+1)/P̄)
+  ΔY    = β̂_P * ΔlogP
+
+Contribution profit at index P:
+  π(P) = 0.38 * (Y_media + Y_price(P) + 1850) * (P/100) − media spend</pre>
+    <p>Raising price cuts units (elasticity) and raises revenue per remaining unit. The investment page finds the peak of π(P) on [96, 104] with the incremental media mix held fixed. That is a list-price stance, not a TPR — TPR lives on the trade-forecast pages.</p>
+
+    <h2 id="a-fw">Attribution frameworks</h2>
+    <table>
+      <thead><tr><th>Framework</th><th>Rule</th><th>What it gets wrong</th></tr></thead>
+      <tbody>
+        <tr><td>Last-touch</td><td>Week’s sales × Search-heavy touch probabilities (60/20/15/5 Search/Social/Email/TV)</td><td>Harvest media eats awareness. TV looks worthless.</td></tr>
+        <tr><td>First-touch</td><td>Credit the earliest channel with spend in an 8-week window; TV wins if it flew</td><td>Opposite bias. Over-pays TOFU, ignores closer conversion.</td></tr>
+        <tr><td>Linear MTA</td><td>Split Y_t by that week’s spend shares</td><td>No carryover, no saturation, no price. Still over-weights always-on Search.</td></tr>
+        <tr><td>Time-decay MTA</td><td>Weight spend_{t−ℓ} by 0.5^ℓ for ℓ = 0..7, then split Y_t</td><td>Better memory than linear, still not incremental, still not price.</td></tr>
+        <tr><td>MMM incremental</td><td>Σ_t β̂_c x̃_{c,t}</td><td>Can overstate Search if price/holiday are incomplete. Needs holdout and lift tests.</td></tr>
+        <tr><td>Lift-calibrated</td><td>MMM totals × {TV 0.88, Social 1.05, Search 0.72, Email 0.95}</td><td>Priors must come from real geo tests, not these defaults, in production.</td></tr>
+        <tr><td>True incremental</td><td>DGP β_c x̃_{c,t}</td><td>Only available here because the data are synthetic.</td></tr>
+      </tbody>
+    </table>
+    <pre class="formula">share_c(F) = 100 * Credit_c(F) / Σ_j Credit_j(F)
+MAE(F) = (1/4) Σ_c | share_c(F) − share_c(true) |</pre>
+
+    <h2 id="a-cal">Why calibrate Search down</h2>
+    <p>Last-touch and uncalibrated MMM both like Search: it is always on, it correlates with demand, and it sits next to conversion. A geo holdout typically finds branded search incremental ROAS well below platform ROAS. The 0.72 factor is a stand-in for that experiment. TV is scaled 0.88 because long-adstock channels are easy to overfit to season.</p>
+
+    <h2 id="a-iroas">Incremental ROAS and +$10k</h2>
+    <pre class="formula">x_ss(s) = s / (1 − θ)
+T(s)    = x_ss / (K + x_ss)
+T'(s)   = K / (K + x_ss)²  *  1/(1−θ)
+
+iROAS_c(s) = β̂_c * T'(s)
++$10k sales ≈ 10 * iROAS_c(s̄_c)</pre>
+    <p>iROAS is evaluated at the channel’s historical mean spend (overview) and again at the recommended mix (investment page). Equimarginal allocation wants iROAS close across channels that are not on a bound.</p>
+
+    <h2 id="a-alloc">Investment allocation</h2>
+    <pre class="formula">Last-touch plan:  s_c ∝ platform touch share,  Σ s_c = B
+Incremental plan: max_s  π(s, P=100)
+                  s.t. Σ s_c = B,  8 ≤ s_c ≤ 80
+
+Then: P* = arg max_{P ∈ [96,104]} π(s*, P)
+
+Report:
+  media lift  = π(s*, 100) − π(s_last, 100)
+  price lift  = π(s*, P*) − π(s*, 100)
+  total lift  = media lift + price lift</pre>
+    <p>Same media dollars. The gain is reallocation plus a deliberate price stance. That is “improve investment allocation” for spend and pricing together.</p>
+
+    <h2 id="a-prod">How to estimate this on real data</h2>
+    <ol class="steps">
+      <li>Keep the funnel 2SLS model for mediated TOFU. Use ads + price + holiday on this page for the attribution bake-off finance will actually argue about.</li>
+      <li>Last-touch and MTA come from your existing pathing table (GA4, Adobe, or a warehouse last-non-direct). Do not rebuild them inside the MMM mart.</li>
+      <li>Fit the incremental MMM on <code>mart_mmm_weekly</code> with price_index required, not optional.</li>
+      <li>Register geo-lift / matched-market tests in <code>fact_experiment</code>. Those posteriors replace the 0.88 / 0.72 defaults.</li>
+      <li>Score frameworks every quarter: share MAE versus the calibrated MMM, not versus last-touch.</li>
+      <li>Lock media bounds to ±30% of last year before SLSQP. Search price on a narrow band the pricing committee already owns.</li>
+      <li>Never add incremental media sales to incremental price sales and also to promo lift from the trade model without a hierarchy: price/trade first, media on the residual, or a single stacked equation.</li>
+    </ol>
+  </section>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLV segments</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-page="segments">
+  {% set active = 'clv_segments' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Customer lifetime value</p>
+      <h1>Segments and funnel quality</h1>
+    </div>
+    <p class="lede">Value tiers are the top 20% / middle 40% / bottom 40% of blend CLV. RFM labels come from recency and frequency terciles plus P(alive). Use this page to see whether Paid Search is filling the base with first-box hunters — the customer-level counterpart of the mix-model harvest bias. Family plans should sit above 2-person on mean horizon margin.</p>
+  </header>
+
+  <p id="status" class="status" hidden></p>
+  <section id="results" class="results" hidden>
+    <div id="kpis" class="kpis"></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h3>Total CLV by funnel</h3>
+        <p class="explain">Sum of predicted horizon margin. MOFU often wins on headcount. TOFU should win on value per buyer.</p>
+        <canvas id="funnelChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>Value-tier mix</h3>
+        <p class="explain">High-CLV customers are few. If Search dominates Low, the acquisition mix is buying cheap buyers, not valuable ones.</p>
+        <canvas id="tierChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>RFM segments</h3>
+        <p class="explain">Champions: high frequency and recent. At risk: used to buy, recency has gone cold. Hibernating: one-and-done and likely dead.</p>
+        <canvas id="rfmChart"></canvas>
+      </div>
+      <div class="panel">
+        <h3>P(alive) vs recency</h3>
+        <p class="explain">BG/NBD drops the alive probability as the last purchase recedes, faster when historical frequency was low. That is the dropout process.</p>
+        <canvas id="aliveChart"></canvas>
+      </div>
+    </div>
+    <div class="table-grid">
+      <div>
+        <h3>By acquisition channel</h3>
+        <div id="channelTable"></div>
+      </div>
+      <div>
+        <h3>By RFM segment</h3>
+        <div id="rfmTable"></div>
+      </div>
+    </div>
+  </section>
+  <script src="{{ url_for('static', filename='clv.js') }}?v=6"></script>
+</body>
+</html>

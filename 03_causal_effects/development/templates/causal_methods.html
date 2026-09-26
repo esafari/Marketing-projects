@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Causal methods</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=11" />
+</head>
+<body>
+  {% set active = 'causal' %}
+  {% include '_nav.html' %}
+  <header class="top">
+    <div>
+      <p class="eyebrow">Resume 05</p>
+      <h1>How impact is identified</h1>
+    </div>
+    <p class="lede">Correlation is cheap. Identification is a design. This page is the design.</p>
+  </header>
+  <section class="playbook methods">
+    <pre class="formula">Y_{g,t} = level_g × exp(growth_g × t) × (1 + τ × Treated_g × Post_t) + season_t + e
+
+Confounded assignment   Treated = 1 for the n geos with the largest growth_g
+Randomized assignment   Treated = 1 for n geos drawn uniformly
+
+Observational     (Ȳ_treated,post / Ȳ_treated,pre) − 1
+DiD               exp( Δlog treated − Δlog control ) − 1
+Two-way OLS       log Y on Treated×Post after geo and week demeaning
+Elasticity-style  same contrast as DiD, reported as a percent lift
+
+τ is known in the data generating process (default 0.12).
+Bias = estimate − τ. Brief the randomized DiD, not the observational pre/post.</pre>
+    <p>In production, register geo-lifts in <code>fact_experiment</code> and use those posteriors to scale a channel’s MMM total before Sequential Least Squares Programming. Do not put <code>test_id</code> into two-stage least squares as a regressor.</p>
+  </section>
+</body>
+</html>
